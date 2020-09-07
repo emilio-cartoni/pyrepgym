@@ -4,6 +4,9 @@ from pyrep.const import PrimitiveShape
 
 
 def make_grid():
+    ''' Shows a grid of points delimitin the space of action in the x an y directions
+    '''
+
     type = PrimitiveShape.CUBOID
     r, g, b = 1, 0, 0
     w, h, d = 0.01, 0.01, 0.01

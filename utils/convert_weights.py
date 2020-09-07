@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# convert weights numpy object from python3 protocol to python2
+
 py2_load="
 import numpy as np
 import pickle

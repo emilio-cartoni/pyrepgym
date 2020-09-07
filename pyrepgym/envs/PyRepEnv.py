@@ -15,6 +15,14 @@ class PyRepEnv(gym.Env):
     metadata = {'render.modes': ['human', 'console']}
 
     def __init__(self, render_mode="human"):
+        '''
+            Args:
+                render_mode: (string), 'human' for gui interactive simulation,
+                'console' for offline simulation
+
+            TODO: avoid qt dependency in console mode
+
+        '''
 
         assert render_mode in PyRepEnv.metadata['render.modes']
 
@@ -31,16 +39,31 @@ class PyRepEnv(gym.Env):
             high=np.array([[1, 1], [1, 1]])*side + center,
             dtype=float)
 
-        self.table_baseline = 0.42
-        self.table_above = 0.6
-        self.move_duration = np.array([3])
-        self.ik = Iknn()
-        self.objects = []
+        self.observation_space = spaces.Dict({'position',
+            spaces.Box(low=np.array([[-1, -1]])*side + center,
+                high=np.array([[1, 1]])*side + center,)}
+
+        self.table_baseline=0.42
+        self.table_above=0.6
+        self.move_duration=np.array([3])
+        self.ik=Iknn()
+        self.objects=[]
 
     def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
+        ''' Make a standard cuboid object
 
-        pos = self.action_space.sample()[0]
-        object_handle = Shape.create(
+            Args:
+                color: (list or array of 3 floats), RGB color
+                size: (list or array of 3 floats), w, h, d sizes
+
+            Returns:
+
+                handle to pyrep object
+
+        '''
+
+        pos=self.action_space.sample()[0]
+        object_handle=Shape.create(
             mass=0.002,
             type=PrimitiveShape.CUBOID,
             color=color,
@@ -66,25 +89,36 @@ class PyRepEnv(gym.Env):
                 self.move_duration)
             self.robot.wait_for_goto(arm)
         elif pos is not None:
-            joints = self.ik.get_joints(pos)
-            joints[6] = 0.5*np.pi
+            joints=self.ik.get_joints(pos)
+            joints[6]=0.5*np.pi
             self.move_to(arm, joints=joints)
 
     def grasp(self, gripper, grasp_amp, torque):
-        self.robot.grasp(gripper,grasp_amp, torque)
+        ''' Move gripper claws
+
+            Args:
+                gripper: (string), one of 'LEFT_GRIPPER' or 'RIGHT_GRIPPER'
+                grasp_amp: (float), amplitude of opening, from 0 (closed)
+                    to 100 (open).
+                torque: (float) amount of force, from 0 (none) to 100 (maximum)
+        '''
+        self.robot.grasp(gripper, grasp_amp, torque)
         self.robot.wait_for_grasp(gripper)
 
-
     def render(self, mode="console"):
-        self.headless = mode != "human"
-        self.robot = CSConntrollerIiwas(headless=mode != "human",
+        ''' Start simulation
+            Args:
+                mode: (string), one of 'human' or 'console'
+        '''
+        self.headless=mode != "human"
+        self.robot=CSConntrollerIiwas(headless=mode != "human",
                                         auto_start=False)
 
         self.robot.open_simulation()
         self.robot.start_simulation()
 
     def reset(self):
-        """ """
+        """ Restart simulation"""
         self.robot.stop_simulation()
         self.robot.start_simulation()
 
@@ -92,59 +126,63 @@ class PyRepEnv(gym.Env):
 
     def step(self, action):
 
-        start, dest = action
+        start, dest=action
 
-        p1_up = np.hstack([start, self.table_above])
-        p1_down = np.hstack([start, self.table_baseline])
-        p1_up = np.hstack([start, self.table_above])
-        p2_up = np.hstack([dest, self.table_above])
-        p2_down = np.hstack([dest, self.table_baseline])
+        p1_up=np.hstack([start, self.table_above])
+        p1_down=np.hstack([start, self.table_baseline])
+        p1_up=np.hstack([start, self.table_above])
+        p2_up=np.hstack([dest, self.table_above])
+        p2_down=np.hstack([dest, self.table_baseline])
 
-        def move(joints):
-            joints[6] = 0.5*np.pi
-            self.robot.goto_joint(
-                'LEFT_ARM',
-                joints.reshape(1, -1),
-                self.move_duration)
-            self.robot.wait_for_goto('LEFT_ARM')
+        ''' action is composed of several movements.
+                1 gripper posed above the start position, 
+                2 arm moved down
+                3 gripper closed
+                4 arm moved above 
+                5 gripper posed above the destination position
+                6 arm moved down
+                7 gripper opened
+                8 arm moved above
+        '''
+        self.grasp('LEFT_GRIPPER', 60, 15)
+        self.move_to(arm="LEFT_ARM", pos=p1_up)
+        self.move_to(arm="LEFT_ARM", pos=p1_down)
+        self.grasp('LEFT_GRIPPER', 20, 10)
+        self.grasp('LEFT_GRIPPER', 20, 100)
+        self.move_to(arm="LEFT_ARM", pos=p1_up)
+        self.move_to(arm="LEFT_ARM", pos=p2_up)
+        self.move_to(arm="LEFT_ARM", pos=p2_down)
+        self.grasp('LEFT_GRIPPER', 60, 15)
+        self.move_to(arm="LEFT_ARM", pos=p2_up)
 
-        self.robot.grasp('LEFT_GRIPPER', 60, 15)
-        self.robot.wait_for_grasp('LEFT_GRIPPER')
-        joints = self.ik.get_joints(p1_up)
-        move(joints)
-        joints = self.ik.get_joints(p1_down)
-        move(joints)
-        self.robot.grasp('LEFT_GRIPPER', 20, 10)
-        self.robot.wait_for_grasp('LEFT_GRIPPER')
-        self.robot.grasp('LEFT_GRIPPER', 20, 100)
-        self.robot.wait_for_grasp('LEFT_GRIPPER')
-        joints = self.ik.get_joints(p1_up)
-        move(joints)
-        joints = self.ik.get_joints(p2_up)
-        move(joints)
-        joints = self.ik.get_joints(p2_down)
-        move(joints)
-        self.robot.grasp('LEFT_GRIPPER', 60, 15)
-        self.robot.wait_for_grasp('LEFT_GRIPPER')
-        joints = self.ik.get_joints(p2_up)
-        move(joints)
+        pos=self.robot.get_gripper_position('LEFT_ARM')
 
-        pos = self.robot.get_gripper_position('LEFT_ARM')
+        observation = {'position': pos}
+
+        return observation, None, None, {}
+
+    def close(self):
+        ''' Close simulation '''
+        self.robot.stop_simulation()
+        self.robot.__del__()
 
     def step_joints(self, joints):
+        ''' Change joint position -- Debug purposes '''
+
         self.robot.goto_joint(
             'LEFT_ARM',
             joints.reshape(1, -1),
             self.move_duration)
         self.robot.wait_for_goto('LEFT_ARM')
-        pos = self.robot.get_gripper_position('LEFT_ARM')
+        pos=self.robot.get_gripper_position('LEFT_ARM')
 
         return pos
 
     def step_explore(self):
+        ''' Random joint posture -- DEbug purpose '''
 
-        joint_poses = np.array([[-20, 30, 0., -60, 0., 90, 0.]]) / 180 * np.pi
-        joint_poses += (20*np.random.randn(7)*[1, 1, 0, 1, 0, 1, 0]) \
+        joint_poses=np.array([[-20, 30, 0., -60, 0., 90, 0.]]) / 180 * np.pi
+        joint_poses += (20*np.random.randn(7)*[1, 1, 0, 1, 0, 1, 0])
             / 180 * np.pi
 
         self.robot.goto_joint('LEFT_ARM',
@@ -152,9 +190,6 @@ class PyRepEnv(gym.Env):
                               self.move_duration)
         self.robot.wait_for_goto('LEFT_ARM')
 
-        pos = self.robot.get_gripper_position('LEFT_ARM')
+        pos=self.robot.get_gripper_position('LEFT_ARM')
         return np.hstack((joint_poses.ravel(), np.hstack(pos)))
 
-    def close(self):
-        self.robot.stop_simulation()
-        self.robot.__del__()
