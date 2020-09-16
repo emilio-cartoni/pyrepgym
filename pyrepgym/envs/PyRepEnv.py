@@ -32,22 +32,43 @@ class PyRepEnv(gym.Env):
         # of the table (start point, destination point)
         center = [-0.1, 0.1]
         side = 0.15
-        self.action_space = spaces.Box(
+        self.macro_space = spaces.Box(
             # Lower limits for start and destination
             low=np.array([[-1, -1], [-1, -1]])*side + center,
             # Upper limits for start and destination
             high=np.array([[1, 1], [1, 1]])*side + center,
             dtype=float)
 
-        self.observation_space = spaces.Dict({'position',
-            spaces.Box(low=np.array([[-1, -1]])*side + center,
-                high=np.array([[1, 1]])*side + center,)}
+        self.action_space = spaces.Dict({
+                            "macro_action": self.macro_space,
+                            "render": spaces.MultiBinary(1)})
+
+        #self.observation_space = spaces.Dict({'position',
+         #   spaces.Box(low=np.array([[-1, -1]])*side + center,
+          #      high=np.array([[1, 1]])*side + center,
+	    #	dtype=float)})
 
         self.table_baseline=0.42
         self.table_above=0.6
         self.move_duration=np.array([3])
         self.ik=Iknn()
         self.objects=[]
+
+        ''' Start simulation
+            Args:
+                mode: (string), one of 'human' or 'console'
+        '''
+        self.headless=render_mode != "human"
+        self.robot=CSConntrollerIiwas(headless=True,#self.headless,
+                                        auto_start=False)
+
+        self.robot.open_simulation()
+        self.robot.start_simulation()
+
+    def set_goals_dataset_path(self, path):
+        # @TODO implement this
+        pass
+
 
     def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
         ''' Make a standard cuboid object
@@ -62,7 +83,7 @@ class PyRepEnv(gym.Env):
 
         '''
 
-        pos=self.action_space.sample()[0]
+        pos=self.action_space.sample()['macro_action'][0]
         object_handle=Shape.create(
             mass=0.002,
             type=PrimitiveShape.CUBOID,
@@ -106,16 +127,8 @@ class PyRepEnv(gym.Env):
         self.robot.wait_for_grasp(gripper)
 
     def render(self, mode="console"):
-        ''' Start simulation
-            Args:
-                mode: (string), one of 'human' or 'console'
-        '''
-        self.headless=mode != "human"
-        self.robot=CSConntrollerIiwas(headless=mode != "human",
-                                        auto_start=False)
-
-        self.robot.open_simulation()
-        self.robot.start_simulation()
+        # @TODO do we need to implement this?
+        pass
 
     def reset(self):
         """ Restart simulation"""
@@ -126,7 +139,10 @@ class PyRepEnv(gym.Env):
 
     def step(self, action):
 
-        start, dest=action
+        macro_action = action['macro_action']
+        render = action['render']
+
+        start, dest=macro_action
 
         p1_up=np.hstack([start, self.table_above])
         p1_down=np.hstack([start, self.table_baseline])
