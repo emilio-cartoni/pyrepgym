@@ -6,7 +6,7 @@ from pyrepgym.envs.iknn import Iknn
 
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
-
+from vrep_iiwas.sensors import RealSense
 
 class PyRepEnv(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
@@ -14,7 +14,7 @@ class PyRepEnv(gym.Env):
 
     metadata = {'render.modes': ['human', 'console']}
 
-    def __init__(self, render_mode="human"):
+    def __init__(self, render_mode="console"):
         '''
             Args:
                 render_mode: (string), 'human' for gui interactive simulation,
@@ -43,10 +43,43 @@ class PyRepEnv(gym.Env):
                             "macro_action": self.macro_space,
                             "render": spaces.MultiBinary(1)})
 
-        #self.observation_space = spaces.Dict({'position',
-         #   spaces.Box(low=np.array([[-1, -1]])*side + center,
-          #      high=np.array([[1, 1]])*side + center,
-	    #	dtype=float)})
+        obj_obs = {}
+        used_objects = ['cube']
+        for obj in used_objects:
+            high = np.array([np.finfo(np.float32).max,
+                             np.finfo(np.float32).max,
+                             np.finfo(np.float32).max])
+            obj_obs[obj] = gym.spaces.Box(-high, high, dtype=float)
+
+        self.observation_space = spaces.Dict({
+            'position': spaces.Box(low=np.array([[-1, -1]])*side + center,
+                                   high=np.array([[1, 1]])*side + center,
+                                   dtype=float),
+            'retina': gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8),
+            'object_positions': gym.spaces.Dict(obj_obs)
+            })
+
+
+        # REAL extended observation space:
+#       observation_space = gym.spaces.Dict({
+#               self.ObsSpaces.JOINT_POSITIONS: gym.spaces.Box(
+#                   -np.inf, np.inf, [self.num_joints], dtype=float),
+#               self.ObsSpaces.TOUCH_SENSORS: gym.spaces.Box(
+#                   0, np.inf, [self.num_touch_sensors], dtype=float),
+#               self.ObsSpaces.RETINA: gym.spaces.Box(
+#                   0, 255, [Kuka.eye_height, Kuka.eye_width, 3], dtype=np.uint8),
+#               self.ObsSpaces.GOAL: gym.spaces.Box(
+#                   0, 255, [Kuka.eye_height, Kuka.eye_width, 3], dtype=np.uint8),
+#               self.ObsSpaces.MASK: gym.spaces.Box(
+#                   0, 255, [Kuka.eye_height, Kuka.eye_width], dtype=np.int32),
+#               self.ObsSpaces.GOAL_MASK: gym.spaces.Box(
+#                   0, 255, [Kuka.eye_height, Kuka.eye_width], dtype=np.int32),
+#               self.ObsSpaces.OBJ_POS: gym.spaces.Dict(obj_obs),
+#               self.ObsSpaces.GOAL_POS: gym.spaces.Dict(obj_obs)
+#               }
+
+
+        self.no_retina = self.observation_space.spaces['retina'].sample()*0
 
         self.table_baseline=0.42
         self.table_above=0.6
@@ -59,11 +92,26 @@ class PyRepEnv(gym.Env):
                 mode: (string), one of 'human' or 'console'
         '''
         self.headless=render_mode != "human"
-        self.robot=CSConntrollerIiwas(headless=True,#self.headless,
+        self.robot=CSConntrollerIiwas(headless=False,#self.headless,
                                         auto_start=False)
 
         self.robot.open_simulation()
         self.robot.start_simulation()
+
+
+    def setupCamera(self):
+        cam = RealSense.create(color=True,  # color and depth sensors can be handeled turned
+                               depth=True,  # off individually, to save compute.
+                               position=[0., 0.1, 1.1],
+                               orientation=[np.pi, 0., 0.])
+
+        # center the color sensor
+        cam.set_position(position=-RealSense.COLOR_SENSOR_OFFSET, relative_to=cam)
+
+        cam.set_handle_explicitly()  # Allowes to get images without calling robot.step().
+                                     # Might also save compute when images are not needed
+                                     # every time step.
+        return cam
 
     def set_goals_dataset_path(self, path):
         # @TODO implement this
@@ -134,8 +182,25 @@ class PyRepEnv(gym.Env):
         """ Restart simulation"""
         self.robot.stop_simulation()
         self.robot.start_simulation()
-
         self.makeObject()
+        #Note: it seems when simulation is stopped, you need to recreate the camera
+        self.cam = self.setupCamera()
+        return self.get_observation()
+
+    def get_observation(self, render=True):
+        pos=self.robot.get_gripper_position('LEFT_ARM')
+
+        if render:
+            rgb = self.cam.capture_rgb()  # returns np.array height x width x 3
+        else:
+            rgb = self.no_retina
+
+        cube_pos = self.objects[0].get_position()
+
+        obj_pos = {'cube' : cube_pos}
+
+        observation = {'position': pos, 'retina': rgb, 'object_positions' : obj_pos}
+        return observation
 
     def step(self, action):
 
@@ -171,9 +236,7 @@ class PyRepEnv(gym.Env):
         self.grasp('LEFT_GRIPPER', 60, 15)
         self.move_to(arm="LEFT_ARM", pos=p2_up)
 
-        pos=self.robot.get_gripper_position('LEFT_ARM')
-
-        observation = {'position': pos}
+        observation = self.get_observation(render)
 
         return observation, None, None, {}
 
