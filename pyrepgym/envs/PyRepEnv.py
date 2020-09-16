@@ -2,7 +2,7 @@ from vrep_iiwas.base import CSConntrollerIiwas
 import numpy as np
 import gym
 from gym import spaces
-from iknn import Iknn
+from pyrepgym.envs.iknn import Iknn
 
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
@@ -182,8 +182,7 @@ class PyRepEnv(gym.Env):
         ''' Random joint posture -- DEbug purpose '''
 
         joint_poses=np.array([[-20, 30, 0., -60, 0., 90, 0.]]) / 180 * np.pi
-        joint_poses += (20*np.random.randn(7)*[1, 1, 0, 1, 0, 1, 0])
-            / 180 * np.pi
+        joint_poses += (20*np.random.randn(7)*[1, 1, 0, 1, 0, 1, 0]) / 180 * np.pi
 
         self.robot.goto_joint('LEFT_ARM',
                               joint_poses,

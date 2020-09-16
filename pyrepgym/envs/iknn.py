@@ -30,7 +30,7 @@ class Iknn:
         fweights = os.path.realpath(os.path.dirname(__file__)) + \
             os.sep + "weights.npy"
 
-        self.params = np.load(fweights, allow_pickle=True)
+        self.params = np.load(fweights, allow_pickle=True, encoding='latin1')
         self.biases = [self.params[s] for s in
                        range(1, len(self.params)+1, 2)]
         self.weights = [self.params[s] for s in
