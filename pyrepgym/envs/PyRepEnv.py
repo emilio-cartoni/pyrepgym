@@ -3,16 +3,19 @@ import numpy as np
 import gym
 from gym import spaces
 from pyrepgym.envs.iknn import Iknn
-
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
 from vrep_iiwas.sensors import RealSense
+import os
 
 class PyRepEnv(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
     '''
 
     metadata = {'render.modes': ['human', 'console']}
+
+    intrinsic_timesteps = int(15e3)
+    extrinsic_timesteps = int(10)
 
     def __init__(self, render_mode="console"):
         '''
@@ -30,14 +33,10 @@ class PyRepEnv(gym.Env):
 
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
-        center = [-0.1, 0.1]
-        side = 0.15
         self.macro_space = spaces.Box(
-            # Lower limits for start and destination
-            low=np.array([[-1, -1], [-1, -1]])*side + center,
-            # Upper limits for start and destination
-            high=np.array([[1, 1], [1, 1]])*side + center,
-            dtype=float)
+                                  low=np.array([[-0.35, -0.19], [-0.35, -0.19]]),
+                                  high=np.array([[-0.10, 0.39], [-0.10,  0.39]]),
+                                  dtype=float)
 
         self.action_space = spaces.Dict({
                             "macro_action": self.macro_space,
@@ -52,51 +51,33 @@ class PyRepEnv(gym.Env):
             obj_obs[obj] = gym.spaces.Box(-high, high, dtype=float)
 
         self.observation_space = spaces.Dict({
-            'position': spaces.Box(low=np.array([[-1, -1]])*side + center,
-                                   high=np.array([[1, 1]])*side + center,
-                                   dtype=float),
             'retina': gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8),
-            'object_positions': gym.spaces.Dict(obj_obs)
+            'object_positions': gym.spaces.Dict(obj_obs),
+            'goal' : gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8)
             })
 
-
-        # REAL extended observation space:
-#       observation_space = gym.spaces.Dict({
-#               self.ObsSpaces.JOINT_POSITIONS: gym.spaces.Box(
-#                   -np.inf, np.inf, [self.num_joints], dtype=float),
-#               self.ObsSpaces.TOUCH_SENSORS: gym.spaces.Box(
-#                   0, np.inf, [self.num_touch_sensors], dtype=float),
-#               self.ObsSpaces.RETINA: gym.spaces.Box(
-#                   0, 255, [Kuka.eye_height, Kuka.eye_width, 3], dtype=np.uint8),
-#               self.ObsSpaces.GOAL: gym.spaces.Box(
-#                   0, 255, [Kuka.eye_height, Kuka.eye_width, 3], dtype=np.uint8),
-#               self.ObsSpaces.MASK: gym.spaces.Box(
-#                   0, 255, [Kuka.eye_height, Kuka.eye_width], dtype=np.int32),
-#               self.ObsSpaces.GOAL_MASK: gym.spaces.Box(
-#                   0, 255, [Kuka.eye_height, Kuka.eye_width], dtype=np.int32),
-#               self.ObsSpaces.OBJ_POS: gym.spaces.Dict(obj_obs),
-#               self.ObsSpaces.GOAL_POS: gym.spaces.Dict(obj_obs)
-#               }
-
-
         self.no_retina = self.observation_space.spaces['retina'].sample()*0
+        self.no_goal = self.observation_space.spaces['goal'].sample()*0
 
         self.table_baseline=0.42
         self.table_above=0.6
         self.move_duration=np.array([3])
         self.ik=Iknn()
-        self.objects=[]
+        self.objects={}
 
         ''' Start simulation
             Args:
                 mode: (string), one of 'human' or 'console'
         '''
         self.headless=render_mode != "human"
-        self.robot=CSConntrollerIiwas(headless=False,#self.headless,
+        self.robot=CSConntrollerIiwas(headless=self.headless,
                                         auto_start=False)
 
         self.robot.open_simulation()
         self.robot.start_simulation()
+        self.timestep = 0
+        self.goals = None
+        self.goal_idx = -1
 
 
     def setupCamera(self):
@@ -111,11 +92,34 @@ class PyRepEnv(gym.Env):
         cam.set_handle_explicitly()  # Allowes to get images without calling robot.step().
                                      # Might also save compute when images are not needed
                                      # every time step.
+
+        cam.set_collidable(False)
+
         return cam
 
+    def load_goals(self):
+        self.goals = list(np.load(
+                self.goals_dataset_path, allow_pickle=True).items())[0][1]
+
     def set_goals_dataset_path(self, path):
-        # @TODO implement this
-        pass
+        assert os.path.exists(path), "Non existent path {}".format(path)
+        self.goals_dataset_path = path
+
+    def set_goal(self):
+        if self.goals is None:
+            self.load_goals()
+
+        self.goal_idx += 1
+        self.goal = self.goals[self.goal_idx]
+
+        for obj in self.goal.initial_state.keys():
+            pose = self.goal.initial_state[obj]
+            self.objects[obj].set_pose(pose)
+
+        for obj in self.goal.final_state.keys():
+            self.goal.final_state[obj] = self.goal.final_state[obj][:3]
+
+        return self.get_observation()
 
 
     def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
@@ -139,7 +143,7 @@ class PyRepEnv(gym.Env):
             size=size,
             position=[pos[0], pos[1], self.table_baseline])
         object_handle.set_bullet_friction(10e9)
-        self.objects.append(object_handle)
+        self.objects['cube'] = object_handle
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
@@ -174,6 +178,10 @@ class PyRepEnv(gym.Env):
         self.robot.grasp(gripper, grasp_amp, torque)
         self.robot.wait_for_grasp(gripper)
 
+    def goHome(self, duration=3.0):
+        self.robot.goto_joint('LEFT_ARM', np.zeros((1,7)), np.array([duration]))
+        self.robot.wait_for_goto('LEFT_ARM')
+
     def render(self, mode="console"):
         # @TODO do we need to implement this?
         pass
@@ -182,6 +190,9 @@ class PyRepEnv(gym.Env):
         """ Restart simulation"""
         self.robot.stop_simulation()
         self.robot.start_simulation()
+        self.timestep = 0
+        self.goHome()
+        self.grasp('LEFT_GRIPPER', 0, 100)
         self.makeObject()
         #Note: it seems when simulation is stopped, you need to recreate the camera
         self.cam = self.setupCamera()
@@ -195,11 +206,13 @@ class PyRepEnv(gym.Env):
         else:
             rgb = self.no_retina
 
-        cube_pos = self.objects[0].get_position()
+        cube_pos = self.objects['cube'].get_position()
 
         obj_pos = {'cube' : cube_pos}
 
-        observation = {'position': pos, 'retina': rgb, 'object_positions' : obj_pos}
+        goal = self.no_goal
+
+        observation = {'position': pos, 'retina': rgb, 'object_positions' : obj_pos, 'goal' : goal}
         return observation
 
     def step(self, action):
@@ -207,38 +220,49 @@ class PyRepEnv(gym.Env):
         macro_action = action['macro_action']
         render = action['render']
 
-        start, dest=macro_action
+        if macro_action is not None:
+            print("Executing:", macro_action)
+            start, dest=macro_action
 
-        p1_up=np.hstack([start, self.table_above])
-        p1_down=np.hstack([start, self.table_baseline])
-        p1_up=np.hstack([start, self.table_above])
-        p2_up=np.hstack([dest, self.table_above])
-        p2_down=np.hstack([dest, self.table_baseline])
+            p1_up=np.hstack([start, self.table_above])
+            p1_down=np.hstack([start, self.table_baseline])
+            p1_up=np.hstack([start, self.table_above])
+            p2_up=np.hstack([dest, self.table_above])
+            p2_down=np.hstack([dest, self.table_baseline])
 
-        ''' action is composed of several movements.
-                1 gripper posed above the start position, 
-                2 arm moved down
-                3 gripper closed
-                4 arm moved above 
-                5 gripper posed above the destination position
-                6 arm moved down
-                7 gripper opened
-                8 arm moved above
-        '''
-        self.grasp('LEFT_GRIPPER', 60, 15)
-        self.move_to(arm="LEFT_ARM", pos=p1_up)
-        self.move_to(arm="LEFT_ARM", pos=p1_down)
-        self.grasp('LEFT_GRIPPER', 20, 10)
-        self.grasp('LEFT_GRIPPER', 20, 100)
-        self.move_to(arm="LEFT_ARM", pos=p1_up)
-        self.move_to(arm="LEFT_ARM", pos=p2_up)
-        self.move_to(arm="LEFT_ARM", pos=p2_down)
-        self.grasp('LEFT_GRIPPER', 60, 15)
-        self.move_to(arm="LEFT_ARM", pos=p2_up)
+            ''' action is composed of several movements.
+                    1 gripper moved above the start position, 
+                    2 gripper moved down
+                    3 gripper moved to the destination position
+                    8 gripper moved up
+                    5 go back home
+            '''
+            self.move_to(arm="LEFT_ARM", pos=p1_up)
+            self.move_to(arm="LEFT_ARM", pos=p1_down)
+            gpos = self.robot.get_gripper_position('LEFT_ARM')[0]
+            self.move_to(arm="LEFT_ARM", pos=p2_down)
+            self.move_to(arm="LEFT_ARM", pos=p2_up)
+            self.goHome()
+        else:
+            gpos = None
+            print("No action to execute, just observe.")
 
         observation = self.get_observation(render)
+        observation['reached_pos'] = gpos # for debug purpose
 
-        return observation, None, None, {}
+        reward = 0
+        done = False
+        self.timestep += 1
+        if self.goal_idx < 0:
+            if self.timestep >= self.intrinsic_timesteps:
+                done = True
+        else:
+            if self.timestep >= self.extrinsic_timesteps:
+                done = True
+
+        info = {}
+
+        return observation, reward, done, info
 
     def close(self):
         ''' Close simulation '''
@@ -257,11 +281,18 @@ class PyRepEnv(gym.Env):
 
         return pos
 
-    def step_explore(self):
-        ''' Random joint posture -- DEbug purpose '''
+    def step_explore(self, verticalGripper=False):
+        ''' Random joint posture -- Debug purpose '''
 
         joint_poses=np.array([[-20, 30, 0., -60, 0., 90, 0.]]) / 180 * np.pi
         joint_poses += (20*np.random.randn(7)*[1, 1, 0, 1, 0, 1, 0]) / 180 * np.pi
+
+        if verticalGripper:
+            joint_poses[0, 2] = 0
+            joint_poses[0, 4] = 0
+            joint_poses[0, 6] = 0
+            joint_poses[0, 5] = np.pi - (joint_poses[0, 1] - joint_poses[0, 3])
+            joint_poses[0, 6] = joint_poses[0, 0]
 
         self.robot.goto_joint('LEFT_ARM',
                               joint_poses,

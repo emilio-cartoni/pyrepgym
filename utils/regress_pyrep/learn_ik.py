@@ -25,7 +25,7 @@ model.compile(optimizer=opt, loss="mse", metrics=['accuracy'])
 model.summary()
 
 # %%
-hist = model.fit(X, Y, batch_size=40, verbose=2, epochs=4000)
+hist = model.fit(X, Y, batch_size=40, verbose=2, epochs=50)
 np.save("weights", model.get_weights())
 for w in model.get_weights():
     print(w.shape)

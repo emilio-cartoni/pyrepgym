@@ -1,6 +1,7 @@
 import numpy as np
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
+import itertools
 
 
 def make_grid():
@@ -12,10 +13,9 @@ def make_grid():
     w, h, d = 0.01, 0.01, 0.01
     z = 0.5
 
-    center = [-0.1, 0.1]
-    side = 0.15
-    poses = np.array([[0,  0], [-1,  0], [0, -1], [1,  0], [0,  1], [-1,  1],
-                      [1,  -1], [1, 1], [-1, -1]])*side + center
+    xs = [-0.35, -0.1, -0.05, 0, 0.1, 0.2, 0.3, 0.4]
+    ys = np.linspace(-0.19, 0.4, 7)
+    poses = [p for p in itertools.product(xs, ys)]
 
     handles = []
 

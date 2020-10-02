@@ -12,20 +12,19 @@ the dataset is filtered by the desired space limits and used
 to regress the weights of a neural network for inverse kinematics.
 '''
 
-env = gym.make("PyRepEnv-v0")
-env.render("console")
+env = gym.make("PyRepEnv-v0", render_mode="console")
 env.reset()
 make_grid()
-
+seed = np.random.randint(1000000)
+datafile = "data_explore_{}".format(seed)
 data = []
-for k in range(20000):
+for k in range(5000):
     p = env.step_joints(np.zeros(7))
-    p = env.step_explore()
+    p = env.step_explore(True)
     data.append(np.hstack(p))
     if k % 500 == 0:
-        np.savetxt("data_explore", np.vstack(data))
+        np.savetxt(datafile, np.vstack(data))
         print(k)
 data = np.vstack(data)
-
-np.savetxt("data_explore", data)
+np.savetxt(datafile, data)
 env.close()
