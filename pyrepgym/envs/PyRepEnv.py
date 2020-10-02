@@ -121,6 +121,25 @@ class PyRepEnv(gym.Env):
 
         return self.get_observation()
 
+    def evaluateGoal(self):
+        initial_state = self.goal.initial_state  # noqa F841
+        final_state = self.goal.final_state
+        score = 0
+        for obj in final_state.keys():
+            if obj not in self.objects:
+                pass
+            p = np.array(self.objects[obj].get_position())
+            p_goal = np.array(final_state[obj][:3])
+            pos_dist = np.linalg.norm(p_goal-p)
+            # Score goes down to 0.25 within 10cm
+            pos_const = -np.log(0.25) / 0.10
+            pos_value = np.exp(- pos_const * pos_dist)
+            objScore = pos_value
+            # print("Object: {} Score: {:.4f}".format(obj,objScore))
+            score += objScore
+
+        # print("Goal score: {:.4f}".format(score))
+        return self.goal.challenge, score
 
     def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
         ''' Make a standard cuboid object
@@ -135,7 +154,8 @@ class PyRepEnv(gym.Env):
 
         '''
 
-        pos=self.action_space.sample()['macro_action'][0]
+        #pos=self.action_space.sample()['macro_action'][0]
+        pos = [-0.2, 0.1]
         object_handle=Shape.create(
             mass=0.002,
             type=PrimitiveShape.CUBOID,
@@ -144,6 +164,15 @@ class PyRepEnv(gym.Env):
             position=[pos[0], pos[1], self.table_baseline])
         object_handle.set_bullet_friction(10e9)
         self.objects['cube'] = object_handle
+
+    def control_objects_limits(self):
+        '''
+        reset positions if an object goes out of the limits
+        '''
+        for obj in self.objects:
+            x, y, z = self.objects[obj].get_position()
+            if z < 0.35 or x > 0.0: #fallen off the table or too far
+                self.objects[obj].set_pose(pose=[-0.2, 0.1, self.table_baseline, 0, 0, 0, 1])      # [*position, *quaternion]
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
@@ -243,6 +272,9 @@ class PyRepEnv(gym.Env):
             self.move_to(arm="LEFT_ARM", pos=p2_down)
             self.move_to(arm="LEFT_ARM", pos=p2_up)
             self.goHome()
+
+            self.control_objects_limits()
+
         else:
             gpos = None
             print("No action to execute, just observe.")
