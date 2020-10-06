@@ -55,10 +55,13 @@ class PyRepEnv(gym.Env):
         self.observation_space = spaces.Dict({
             'retina': gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8),
             'object_positions': gym.spaces.Dict(obj_obs),
-            'goal' : gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8)
+            'goal' : gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.uint8),
+            'goal_mask' : gym.spaces.Box(0, 255, [240, 320, 3], dtype=np.int32),
+            'goal_positions' : gym.spaces.Dict(obj_obs)
             })
 
         self.no_retina = self.observation_space.spaces['retina'].sample()*0
+        self.no_mask = self.observation_space.spaces['goal_mask'].sample()*0
         self.goal = Goal(retina=self.observation_space.spaces['goal'].sample()*0)
 
         self.table_baseline=0.42
@@ -242,9 +245,13 @@ class PyRepEnv(gym.Env):
 
         obj_pos = {'cube' : cube_pos}
 
-        goal = self.goal.retina
-
-        observation = {'position': pos, 'retina': rgb, 'object_positions' : obj_pos, 'goal' : goal}
+        observation = {'position': pos,
+                       'retina': rgb,
+                       'object_positions' : obj_pos,
+                       'goal' : self.goal.retina,
+                       'goal_mask' : self.goal.mask,
+                       'goal_positions' : self.goal.final_state
+                      }
         return observation
 
     def step(self, action):
