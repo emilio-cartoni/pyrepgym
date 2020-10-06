@@ -6,7 +6,9 @@ from pyrepgym.envs.iknn import Iknn
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
 from vrep_iiwas.sensors import RealSense
+from real_robots.envs import Goal
 import os
+import cv2
 
 class PyRepEnv(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
@@ -57,7 +59,7 @@ class PyRepEnv(gym.Env):
             })
 
         self.no_retina = self.observation_space.spaces['retina'].sample()*0
-        self.no_goal = self.observation_space.spaces['goal'].sample()*0
+        self.goal = Goal(retina=self.observation_space.spaces['goal'].sample()*0)
 
         self.table_baseline=0.42
         self.table_above=0.6
@@ -232,14 +234,15 @@ class PyRepEnv(gym.Env):
 
         if render:
             rgb = self.cam.capture_rgb()  # returns np.array height x width x 3
+            rgb = cv2.resize(rgb*256, (320,240)).astype('uint8')
         else:
-            rgb = self.no_retina
+            rgb = self.no_retina.astype('uint8')
 
         cube_pos = self.objects['cube'].get_position()
 
         obj_pos = {'cube' : cube_pos}
 
-        goal = self.no_goal
+        goal = self.goal.retina
 
         observation = {'position': pos, 'retina': rgb, 'object_positions' : obj_pos, 'goal' : goal}
         return observation
