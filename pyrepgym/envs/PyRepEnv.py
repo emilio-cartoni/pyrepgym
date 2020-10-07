@@ -67,6 +67,7 @@ class PyRepEnv(gym.Env):
 
         self.table_baseline=0.42
         self.table_above=0.6
+        self.cube_on_table = 0.36902
         self.move_duration=np.array([3])
         self.ik=Iknn()
         self.objects={}
@@ -167,7 +168,7 @@ class PyRepEnv(gym.Env):
             type=PrimitiveShape.CUBOID,
             color=color,
             size=size,
-            position=[pos[0], pos[1], self.table_baseline])
+            position=[pos[0], pos[1], self.cube_on_table])
         object_handle.set_bullet_friction(10e9)
         self.objects['cube'] = object_handle
 
@@ -178,7 +179,7 @@ class PyRepEnv(gym.Env):
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
             if z < 0.35 or x > 0.0: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=[-0.2, 0.1, self.table_baseline, 0, 0, 0, 1])      # [*position, *quaternion]
+                self.objects[obj].set_pose(pose=[-0.2, 0.1, self.cube_on_table, 0, 0, 0, 1])      # [*position, *quaternion]
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
