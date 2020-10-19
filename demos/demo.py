@@ -10,9 +10,11 @@ from pyrepgym.envs.grid import make_grid
     each destination position is random.
 
 '''
-
-env = gym.make("PyRepEnv-v0", render_mode='human')
+print("START")
+env = gym.make("PyRepEnvRos-v0", render_mode='console')
+print("START2")
 env.reset()
+print("START3")
 # show a grid of points delimiting the space of action in x and y
 handles, poses = make_grid(env.action_space['macro_action'])
 

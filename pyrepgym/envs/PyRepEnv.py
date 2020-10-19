@@ -1,16 +1,71 @@
-from vrep_iiwas.base import CSConntrollerIiwas
 import numpy as np
 import gym
 from gym import spaces
 from pyrepgym.envs.iknn import Iknn
-from pyrep.objects.shape import Shape
-from pyrep.const import PrimitiveShape
-from vrep_iiwas.sensors import RealSense
 from real_robots.envs import Goal
 import os
 import cv2
 
-class PyRepEnv(gym.Env):
+import rospy
+import numpy as np
+import std_msgs.msg
+import sensor_msgs.msg
+from ias_coppelia_sim_iiwas.ros import ROSCSControllerIiwasAirHockey
+from ias_coppelia_sim_iiwas.sensors import RealSense
+
+from pyrep.objects.shape import Shape
+from pyrep.const import PrimitiveShape
+
+
+IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
+
+class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
+
+    def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False):
+        ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
+        self.last_image = self._t
+        print("SELFT:", self._t)
+
+    def _load_scene_components(self, **kwargs):
+        ROSCSControllerIiwasAirHockey._load_scene_components(self, **kwargs)
+        # load camera
+        self.camera = RealSense.create(color=True, depth=False,
+                                       position=[-0.9, 0.1, 1.1],
+                                       orientation=[np.pi, 0., 0.])
+
+        self.camera.set_handle_explicitly()
+
+    def _start_ros_interface(self):
+        ROSCSControllerIiwasAirHockey._start_ros_interface(self)
+        # publisher for camera
+        self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
+                                               sensor_msgs.msg.Image,
+                                               queue_size=10)
+
+    def _publish(self):
+        ROSCSControllerIiwasAirHockey._publish(self)
+
+        
+        if (self._t - self.last_image) > 0.999:
+            # publish image
+            img = self.camera.capture_rgb()
+            img_ = np.ascontiguousarray(img).tostring()
+
+            header = std_msgs.msg.Header()
+            header.stamp = rospy.Time(self._t)
+
+            image_msg = sensor_msgs.msg.Image()
+            image_msg.header = header
+            image_msg.data = img_
+            self.video_publisher.publish(image_msg)
+            self.last_image = self._t
+            print("camera taken", self._t)
+        else:
+            print(self._t)
+
+
+
+class PyRepEnvRos	(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
     '''
 
@@ -29,9 +84,9 @@ class PyRepEnv(gym.Env):
 
         '''
 
-        assert render_mode in PyRepEnv.metadata['render.modes']
+        assert render_mode in PyRepEnvRos.metadata['render.modes']
 
-        super(PyRepEnv, self).__init__()
+        super(PyRepEnvRos, self).__init__()
 
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
@@ -77,32 +132,20 @@ class PyRepEnv(gym.Env):
                 mode: (string), one of 'human' or 'console'
         '''
         self.headless=render_mode != "human"
-        self.robot=CSConntrollerIiwas(headless=self.headless,
-                                        auto_start=False)
+        print("INIT", self.headless)
+        rospy.init_node('coppelia_sim_iiwas_node')
+        self.robot=AwesomeROSControllerIiwas(headless=self.headless,
+                                        auto_start=False, time_step=0.05)
 
+        print("I2")
         self.robot.open_simulation()
+        print("I3")
         self.robot.start_simulation()
+        print("I4")
         self.timestep = 0
+        print("I5")
         self.goals = None
         self.goal_idx = -1
-
-
-    def setupCamera(self):
-        cam = RealSense.create(color=True,  # color and depth sensors can be handeled turned
-                               depth=True,  # off individually, to save compute.
-                               position=[0., 0.1, 1.1],
-                               orientation=[np.pi, 0., 0.])
-
-        # center the color sensor
-        cam.set_position(position=-RealSense.COLOR_SENSOR_OFFSET, relative_to=cam)
-
-        cam.set_handle_explicitly()  # Allowes to get images without calling robot.step().
-                                     # Might also save compute when images are not needed
-                                     # every time step.
-
-        cam.set_collidable(False)
-
-        return cam
 
     def load_goals(self):
         self.goals = list(np.load(
@@ -231,7 +274,7 @@ class PyRepEnv(gym.Env):
         self.grasp('LEFT_GRIPPER', 0, 100)
         self.makeObject()
         #Note: it seems when simulation is stopped, you need to recreate the camera
-        self.cam = self.setupCamera()
+        self.cam = self.robot.camera # self.setupCamera()
         return self.get_observation()
 
     def get_observation(self, render=True):
