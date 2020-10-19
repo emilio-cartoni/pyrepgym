@@ -18,6 +18,7 @@ from pyrep.const import PrimitiveShape
 
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
+CAMERA_DELAY = 5
 
 class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
@@ -46,7 +47,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         ROSCSControllerIiwasAirHockey._publish(self)
 
         
-        if (self._t - self.last_image) > 0.999:
+        if (self._t - self.last_image) > (CAMERA_DELAY - 0.001):
             # publish image
             img = self.camera.capture_rgb()
             img_ = np.ascontiguousarray(img).tostring()
@@ -65,7 +66,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
 
 
-class PyRepEnvRos	(gym.Env):
+class PyRepEnv	(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
     '''
 
@@ -84,9 +85,9 @@ class PyRepEnvRos	(gym.Env):
 
         '''
 
-        assert render_mode in PyRepEnvRos.metadata['render.modes']
+        assert render_mode in PyRepEnv.metadata['render.modes']
 
-        super(PyRepEnvRos, self).__init__()
+        super(PyRepEnv, self).__init__()
 
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
@@ -134,7 +135,7 @@ class PyRepEnvRos	(gym.Env):
         self.headless=render_mode != "human"
         print("INIT", self.headless)
         rospy.init_node('coppelia_sim_iiwas_node')
-        self.robot=AwesomeROSControllerIiwas(headless=self.headless,
+        self.robot=AwesomeROSControllerIiwas(headless=False,#self.headless,
                                         auto_start=False, time_step=0.05)
 
         print("I2")

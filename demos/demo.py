@@ -10,21 +10,32 @@ from pyrepgym.envs.grid import make_grid
     each destination position is random.
 
 '''
-print("START")
-env = gym.make("PyRepEnvRos-v0", render_mode='console')
-print("START2")
+env = gym.make("PyRepEnv-v0", render_mode='human')
 env.reset()
-print("START3")
 # show a grid of points delimiting the space of action in x and y
-handles, poses = make_grid(env.action_space['macro_action'])
+
+if False:
+    handles, poses = make_grid(env.action_space['macro_action'])
+else:
+    from gym import spaces
+    xmin = -0.35 -0.6
+    xmax = -0.10 -0.6
+    ymin = -0.19 -0.3
+    ymax = 0.39 -0.3
+
+    asp = spaces.Box(
+                              low=np.array([[xmin, ymin], [xmin, ymin]]),
+                              high=np.array([[xmax, ymax], [xmax, ymax]]),
+                              dtype=float)
+    handles, poses = make_grid(asp)
 
 pos = env.objects['cube'].get_position()
-for t in range(10):
+for t in range(1):
     pos = env.objects['cube'].get_position()
     env.step_joints(np.zeros(7))
     action = env.action_space.sample()
     action["macro_action"][1,:] = pos[:2]
     env.step(action)
 
-env.close()
+#env.close()
 
