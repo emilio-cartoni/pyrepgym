@@ -18,7 +18,7 @@ env.robot.goto_joint('LEFT_ARM', np.zeros((1,7)), np.array([3]))
 env.robot.wait_for_goto('LEFT_ARM')
 
 
-env.objects[obj].set_pose(pose=[-0.9 -0.1, env.cube_on_table, 0, 0, 0, 1])
+env.objects['cube'].set_pose(pose=[-0.9 -0.1, env.cube_on_table, 0, 0, 0, 1])
 env.robot.goto_joint('LEFT_ARM', np.zeros((1,7)), np.array([3]))
 env.robot.wait_for_goto('LEFT_ARM')
 
