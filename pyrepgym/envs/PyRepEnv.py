@@ -24,7 +24,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
     def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False):
         ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
-        self.last_image = self._t
+        self.last_image = -10000
         print("SELFT:", self._t)
 
     def _load_scene_components(self, **kwargs):
@@ -61,6 +61,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
             self.video_publisher.publish(image_msg)
             self.last_image = self._t
             print("camera taken", self._t)
+            print("Resolution:",img.shape)
         else:
             print(self._t)
 
@@ -143,7 +144,7 @@ class PyRepEnv	(gym.Env):
         print("I3")
         self.robot.start_simulation()
         print("I4")
-
+        self.last_image = self.no_retina
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
 
         self.timestep = 0
@@ -154,6 +155,7 @@ class PyRepEnv	(gym.Env):
     def receive_camera(self, image):
         print("Received camera image.")
         self.last_image = image
+
 
     def load_goals(self):
         self.goals = list(np.load(
@@ -301,8 +303,9 @@ class PyRepEnv	(gym.Env):
         pos=self.robot.get_gripper_position('LEFT_ARM')
 
         if render:
-            rgb = self.cam.capture_rgb()  # returns np.array height x width x 3
-            rgb = cv2.resize(rgb*256, (320,240)).astype('uint8')
+            rgb = np.frombuffer(self.last_image.data, dtype=np.float32).reshape(480, 640, 3)
+            print("Rendering obtained...")            
+            rgb = cv2.resize(rgb, (320,240)).astype('uint8')
         else:
             rgb = self.no_retina.astype('uint8')
 
