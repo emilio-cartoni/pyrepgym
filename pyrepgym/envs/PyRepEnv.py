@@ -5,7 +5,7 @@ from pyrepgym.envs.iknn import Iknn
 from real_robots.envs import Goal
 import os
 import cv2
-
+import time
 import rospy
 import numpy as np
 import sensor_msgs.msg
@@ -17,14 +17,12 @@ IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
 OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
 CAMERA_DELAY = 5
 
-SL = False  # set to True when using the real robots
-
 macro_space = spaces.Box(
                           low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
                           high=np.array([[-0.90, 0.44], [-0.90,  0.44]]),
                           dtype=float)
 
-class PyRepEnv	(gym.Env):
+class PyRepEnv(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
     '''
 
@@ -33,7 +31,7 @@ class PyRepEnv	(gym.Env):
     intrinsic_timesteps = int(15e3)
     extrinsic_timesteps = int(10)
 
-    def __init__(self, render_mode="console"):
+    def __init__(self, render_mode="console", SL=False):
         '''
             Args:
                 render_mode: (string), 'human' for gui interactive simulation,
@@ -88,6 +86,7 @@ class PyRepEnv	(gym.Env):
         self.robot_gripper = CSGripperCommandActionClient('/ezgripper/ezgripper_left')
         self.cscommandcl = CSCommandClient(sl=SL)
         self.last_image = self.no_retina
+        self.fresh_image = False
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
         print("End ROS init")
 
@@ -99,7 +98,7 @@ class PyRepEnv	(gym.Env):
     def receive_camera(self, image):
         print("Received camera image.")
         self.last_image = image
-
+        self.fresh_image = True
 
     def load_goals(self):
         self.goals = list(np.load(
@@ -169,11 +168,11 @@ class PyRepEnv	(gym.Env):
                     the posture to be reached
         '''
         if joints is not None:
-            self.robot.goto_joint(
-                arm,
+            self.robot.goto_joint(                
                 joints.reshape(1, -1),
-                self.move_duration)
-            self.robot.wait_for_goto(arm)
+                joint_group='LEFT_ARM',
+                duration=self.move_duration)
+            self.robot.wait_for_goto()
         elif pos is not None:
             pos = self.new_scene_conversion(pos)
             joints=self.ik.get_joints(pos)
@@ -249,14 +248,13 @@ class PyRepEnv	(gym.Env):
             '''
             self.move_to(arm="LEFT_ARM", pos=p1_up)
             self.move_to(arm="LEFT_ARM", pos=p1_down)
-            gpos = self.robot.get_gripper_position('LEFT_ARM')[0]
             self.move_to(arm="LEFT_ARM", pos=p2_down)
             self.move_to(arm="LEFT_ARM", pos=p2_up)
             self.goHome()
-            self.control_objects_limits()
             print("Wait for new camera image...")
-            for _ in range(int(np.ceil(CAMERA_DELAY/DT))):
-                self.robot.step()
+            self.fresh_image = False
+            while not self.fresh_image:
+                time.sleep(1)
             print("...done")
 
         else:
@@ -264,7 +262,6 @@ class PyRepEnv	(gym.Env):
             print("No action to execute, just observe.")
 
         observation = self.get_observation(render)
-        observation['reached_pos'] = gpos # for debug purpose
 
         reward = 0
         done = False

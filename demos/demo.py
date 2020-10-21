@@ -5,21 +5,15 @@ import gym
 
 '''
     Demo showing random actions
-    
-    each position is above the object.
-    each destination position is random.
 
 '''
-env = gym.make("PyRepEnv-v0", render_mode='human')
+SL = False  # set to True when using the real robots
+env = gym.make("PyRepEnv-v0", render_mode='human', SL=SL)
 env.reset()
 
-pos = env.objects['cube'].get_position()
-for t in range(1):
-    pos = env.objects['cube'].get_position()
-    env.step_joints(np.zeros(7))
+for t in range(5):
     action = env.action_space.sample()
-    action["macro_action"][1,:] = pos[:2]
     env.step(action)
 
-#env.close()
+env.close()
 
