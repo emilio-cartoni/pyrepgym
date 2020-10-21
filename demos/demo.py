@@ -1,7 +1,7 @@
 import numpy as np
 import pyrepgym
 import gym
-from pyrepgym.envs.grid import make_grid
+
 
 '''
     Demo showing random actions
@@ -12,12 +12,9 @@ from pyrepgym.envs.grid import make_grid
 '''
 env = gym.make("PyRepEnv-v0", render_mode='human')
 env.reset()
-# show a grid of points delimiting the space of action in x and y
-
-handles, poses = make_grid(env.action_space['macro_action'])
 
 pos = env.objects['cube'].get_position()
-for t in range(5):
+for t in range(1):
     pos = env.objects['cube'].get_position()
     env.step_joints(np.zeros(7))
     action = env.action_space.sample()

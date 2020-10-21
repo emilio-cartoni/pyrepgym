@@ -8,65 +8,21 @@ import cv2
 
 import rospy
 import numpy as np
-import std_msgs.msg
 import sensor_msgs.msg
-from ias_coppelia_sim_iiwas.ros import ROSCSControllerIiwasAirHockey
-from ias_coppelia_sim_iiwas.sensors import RealSense
-
-from pyrep.objects.shape import Shape
-from pyrep.const import PrimitiveShape
-
+from ias_coppelia_sim_core.ros_utils import CSCommandClient
+from ias_coppelia_sim_core.ros_utils import CSGotoActionClient, CSGripperCommandActionClient
+from ias_coppelia_sim_core.ros_utils import TSLogger, RobotLogger
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
+OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
 CAMERA_DELAY = 5
-DT = 0.05
 
-class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
+SL = False  # set to True when using the real robots
 
-    def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False):
-        ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
-        self.last_image = -10000
-        print("SELFT:", self._t)
-
-    def _load_scene_components(self, **kwargs):
-        ROSCSControllerIiwasAirHockey._load_scene_components(self, **kwargs)
-        # load camera
-        self.camera = RealSense.create(color=True, depth=False,
-                                       position=[-0.9, 0.1, 1.1],
-                                       orientation=[np.pi, 0., 0.])
-
-        self.camera.set_handle_explicitly()
-
-    def _start_ros_interface(self):
-        ROSCSControllerIiwasAirHockey._start_ros_interface(self)
-        # publisher for camera
-        self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
-                                               sensor_msgs.msg.Image,
-                                               queue_size=1)
-
-    def _publish(self):
-        ROSCSControllerIiwasAirHockey._publish(self)
-
-        
-        if (self._t - self.last_image) > (CAMERA_DELAY - 0.001):
-            # publish image
-            img = self.camera.capture_rgb()
-            img_ = np.ascontiguousarray(img).tostring()
-
-            header = std_msgs.msg.Header()
-            header.stamp = rospy.Time(self._t)
-
-            image_msg = sensor_msgs.msg.Image()
-            image_msg.header = header
-            image_msg.data = img_
-            self.video_publisher.publish(image_msg)
-            self.last_image = self._t
-            print("camera taken", self._t)
-            print("Resolution:",img.shape)
-        else:
-            print(self._t)
-
-
+macro_space = spaces.Box(
+                          low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
+                          high=np.array([[-0.90, 0.44], [-0.90,  0.44]]),
+                          dtype=float)
 
 class PyRepEnv	(gym.Env):
     ''' Custom PyRep Iiwas Environment that follows gym interface.
@@ -93,13 +49,8 @@ class PyRepEnv	(gym.Env):
 
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
-        self.macro_space = spaces.Box(
-                                  low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
-                                  high=np.array([[-0.90, 0.44], [-0.90,  0.44]]),
-                                  dtype=float)
-
         self.action_space = spaces.Dict({
-                            "macro_action": self.macro_space,
+                            "macro_action": macro_space,
                             "render": spaces.MultiBinary(1)})
 
         obj_obs = {}
@@ -128,28 +79,20 @@ class PyRepEnv	(gym.Env):
         self.cube_on_table = 0.36902
         self.move_duration=np.array([3])
         self.ik=Iknn()
-        self.objects={}
 
-        ''' Start simulation
-            Args:
-                mode: (string), one of 'human' or 'console'
-        '''
-        self.headless=render_mode != "human"
-        print("INIT", self.headless)
-        rospy.init_node('coppelia_sim_iiwas_node')
-        self.robot=AwesomeROSControllerIiwas(headless=self.headless,
-                                        auto_start=False, time_step=DT)
-
-        print("I2")
-        self.robot.open_simulation()
-        print("I3")
-        self.robot.start_simulation()
-        print("I4")
+        print("Start ROS init")        
+        # A ROS node has to be initialized before doing anything
+        rospy.init_node("goals_demo_node")
+        # set up the all action clients
+        self.robot = CSGotoActionClient('/iiwas_control/iiwas/goto')
+        self.robot_gripper = CSGripperCommandActionClient('/ezgripper/ezgripper_left')
+        self.cscommandcl = CSCommandClient(sl=SL)
         self.last_image = self.no_retina
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
+        print("End ROS init")
 
         self.timestep = 0
-        print("I5")
+        
         self.goals = None
         self.goal_idx = -1
 
@@ -202,38 +145,7 @@ class PyRepEnv	(gym.Env):
         # print("Goal score: {:.4f}".format(score))
         return self.goal.challenge, score
 
-    def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
-        ''' Make a standard cuboid object
 
-            Args:
-                color: (list or array of 3 floats), RGB color
-                size: (list or array of 3 floats), w, h, d sizes
-
-            Returns:
-
-                handle to pyrep object
-
-        '''
-
-        #pos=self.action_space.sample()['macro_action'][0]
-        pos = [-1.0, -0.15]
-        object_handle=Shape.create(
-            mass=0.002,
-            type=PrimitiveShape.CUBOID,
-            color=color,
-            size=size,
-            position=[pos[0], pos[1], self.cube_on_table])
-        object_handle.set_bullet_friction(10e9)
-        self.objects['cube'] = object_handle
-
-    def control_objects_limits(self):
-        '''
-        reset positions if an object goes out of the limits
-        '''
-        for obj in self.objects:
-            x, y, z = self.objects[obj].get_position()
-            if z < 0.35 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=[-1.0, -0.15, self.cube_on_table, 0, 0, 0, 1])
 
 
     def new_scene_conversion(self, pos):
@@ -268,40 +180,33 @@ class PyRepEnv	(gym.Env):
             joints[6]=0.5*np.pi
             self.move_to(arm, joints=joints)
 
-    def grasp(self, gripper, grasp_amp, torque):
+    def grasp(self, grasp_amp, torque):
         ''' Move gripper claws
 
             Args:
-                gripper: (string), one of 'LEFT_GRIPPER' or 'RIGHT_GRIPPER'
                 grasp_amp: (float), amplitude of opening, from 0 (closed)
                     to 100 (open).
                 torque: (float) amount of force, from 0 (none) to 100 (maximum)
         '''
-        self.robot.grasp(gripper, grasp_amp, torque)
-        self.robot.wait_for_grasp(gripper)
+        self.robot_gripper.grasp(grasp_amp, torque)
+        self.robot_gripper.wait_for_grasp()
 
     def goHome(self, duration=3.0):
-        self.robot.goto_joint('LEFT_ARM', np.zeros((1,7)), np.array([duration]))
-        self.robot.wait_for_goto('LEFT_ARM')
+        self.robot.goto_joint(np.zeros((1,7)), 
+                        joint_group='LEFT_ARM', duration=np.array([duration]))
+        self.robot.wait_for_goto()
 
     def render(self, mode="console"):
         # @TODO do we need to implement this?
         pass
 
     def reset(self):
-        """ Restart simulation"""
-        self.robot.stop_simulation()
-        self.robot.start_simulation()
         self.timestep = 0
         self.goHome()
-        self.grasp('LEFT_GRIPPER', 0, 100)
-        self.makeObject()
-        #Note: it seems when simulation is stopped, you need to recreate the camera
-        self.cam = self.robot.camera # self.setupCamera()
+        self.grasp(0, 100)
         return self.get_observation()
 
     def get_observation(self, render=True):
-        pos=self.robot.get_gripper_position('LEFT_ARM')
 
         if render:
             rgb = np.frombuffer(self.last_image.data, dtype=np.float32).reshape(480, 640, 3)
@@ -310,14 +215,10 @@ class PyRepEnv	(gym.Env):
         else:
             rgb = self.no_retina.astype('uint8')
 
-        cube_pos = self.objects['cube'].get_position()
-
-        obj_pos = {'cube' : cube_pos}
-
-        observation = {'position': pos,
+        observation = {'position': None,
                        'retina': rgb,
                        'mask' : self.no_mask,
-                       'object_positions' : obj_pos,
+                       'object_positions' : None,
                        'goal' : self.goal.retina,
                        'goal_mask' : self.goal.mask,
                        'goal_positions' : self.goal.final_state
