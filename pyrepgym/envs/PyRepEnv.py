@@ -19,6 +19,7 @@ from pyrep.const import PrimitiveShape
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
 CAMERA_DELAY = 5
+DT = 0.05
 
 class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
@@ -136,8 +137,8 @@ class PyRepEnv	(gym.Env):
         self.headless=render_mode != "human"
         print("INIT", self.headless)
         rospy.init_node('coppelia_sim_iiwas_node')
-        self.robot=AwesomeROSControllerIiwas(headless=False,#self.headless,
-                                        auto_start=False, time_step=0.05)
+        self.robot=AwesomeROSControllerIiwas(headless=self.headless,
+                                        auto_start=False, time_step=DT)
 
         print("I2")
         self.robot.open_simulation()
@@ -351,8 +352,11 @@ class PyRepEnv	(gym.Env):
             self.move_to(arm="LEFT_ARM", pos=p2_down)
             self.move_to(arm="LEFT_ARM", pos=p2_up)
             self.goHome()
-
             self.control_objects_limits()
+            print("Wait for new camera image...")
+            for _ in range(int(np.ceil(CAMERA_DELAY/DT))):
+                self.robot.step()
+            print("...done")
 
         else:
             gpos = None
