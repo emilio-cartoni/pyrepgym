@@ -92,8 +92,8 @@ class PyRepEnv	(gym.Env):
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
         self.macro_space = spaces.Box(
-                                  low=np.array([[-0.35, -0.19], [-0.35, -0.19]]),
-                                  high=np.array([[-0.10, 0.39], [-0.10,  0.39]]),
+                                  low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
+                                  high=np.array([[-0.90, 0.44], [-0.90,  0.44]]),
                                   dtype=float)
 
         self.action_space = spaces.Dict({
@@ -206,7 +206,7 @@ class PyRepEnv	(gym.Env):
         '''
 
         #pos=self.action_space.sample()['macro_action'][0]
-        pos = [-0.2, 0.1]
+        pos = [-1.0, -0.15]
         object_handle=Shape.create(
             mass=0.002,
             type=PrimitiveShape.CUBOID,
@@ -222,8 +222,19 @@ class PyRepEnv	(gym.Env):
         '''
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
-            if z < 0.35 or x > 0.0: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=[-0.2, 0.1, self.cube_on_table, 0, 0, 0, 1])      # [*position, *quaternion]
+            if z < 0.35 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
+                self.objects[obj].set_pose(pose=[-1.0, -0.15, self.cube_on_table, 0, 0, 0, 1])
+
+
+    def new_scene_conversion(self, pos):
+        # This function converts from the coordinates of this scene
+        # to the coordinates of the old scene (i.e. keeping the distance
+        # from the robot the same). This function can be discarded
+        # once the robot inverse kynematic is retrained for the new scene
+        new_pos = pos.copy()
+        new_pos[0] = new_pos[0] + 0.8272
+        new_pos[1] = new_pos[1] + 0.2564
+        return new_pos
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
@@ -242,6 +253,7 @@ class PyRepEnv	(gym.Env):
                 self.move_duration)
             self.robot.wait_for_goto(arm)
         elif pos is not None:
+            pos = self.new_scene_conversion(pos)
             joints=self.ik.get_joints(pos)
             joints[6]=0.5*np.pi
             self.move_to(arm, joints=joints)
