@@ -41,7 +41,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         # publisher for camera
         self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
                                                sensor_msgs.msg.Image,
-                                               queue_size=10)
+                                               queue_size=1)
 
     def _publish(self):
         ROSCSControllerIiwasAirHockey._publish(self)
@@ -143,10 +143,17 @@ class PyRepEnv	(gym.Env):
         print("I3")
         self.robot.start_simulation()
         print("I4")
+
+        rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
+
         self.timestep = 0
         print("I5")
         self.goals = None
         self.goal_idx = -1
+
+    def receive_camera(self, image):
+        print("Received camera image.")
+        self.last_image = image
 
     def load_goals(self):
         self.goals = list(np.load(
