@@ -209,7 +209,7 @@ class PyRepEnv(gym.Env):
         self.robot_gripper.wait_for_grasp()
 
     def goHome(self, duration=3.0):
-        self.robot.goto_joint(np.zeros((1,7)), 
+        self.robot.goto_joint(np.array([0,-0.20,0,-1,0,1.1,0]),
                         joint_group='LEFT_ARM', duration=np.array([duration]))
         self.robot.wait_for_goto()
 
