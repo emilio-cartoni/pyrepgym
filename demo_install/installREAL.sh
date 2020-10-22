@@ -4,6 +4,7 @@ set -e
 # requires pyrep, pip, git
 
 sudo apt install -y python3-tk
+sudo apt-get install -y libavcodec-dev libavformat-dev libswscale-dev
 
 if [ -z ${COPPELIASIM_ROOT+x} ]; then 
 printf "COPPELIASIM_ROOT is not set\\nrun PyRep installation or\\nsource .bashrc or\\use a new terminal first\\n"; 

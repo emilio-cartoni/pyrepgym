@@ -31,7 +31,4 @@ python3 setup.py install --user
 cd 
 
 pip3 install mpi4py --user
-git clone git@git.ias.informatik.tu-darmstadt.de:ias_vrep/scenes/vrep_iiwas.git
-cd vrep_iiwas
-python3 setup.py install --user
 
