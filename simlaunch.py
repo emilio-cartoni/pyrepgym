@@ -6,6 +6,8 @@ from ias_coppelia_sim_iiwas.ros import ROSCSControllerIiwasAirHockey
 from ias_coppelia_sim_iiwas.sensors import RealSense
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
+from pyrepgym.envs.grid import make_grid
+from pyrepgym.envs.PyRepEnv import macro_space
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
 OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
@@ -16,7 +18,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
     def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False):
         ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
         self.last_image = -10000
-        self.cube_pos =[-1.0, -0.15, 0.25]
+        self.cube_pos =[-1.0, -0.15, 0.191]
         self.objects = {}
 
     def _load_scene_components(self, **kwargs):
@@ -28,7 +30,8 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
         self.camera.set_handle_explicitly()
         # create object
-        #self.makeObject()
+        self.makeObject()
+        handles, poses = make_grid(macro_space)
 
 
     def _start_ros_interface(self):
@@ -39,7 +42,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
                                                queue_size=1)
         # publisher for object position
         self.objpos_publisher = rospy.Publisher(OBJPOS_TOPIC_NAME,
-                                               sensor_msgs.msg.Image, #to be changed
+                                               std_msgs.msg.Float32MultiArray, #to be changed
                                                queue_size=1)
 
 
@@ -49,7 +52,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         
         if (self._t - self.last_image) > (CAMERA_DELAY - 0.001):
             # reset object if needed
-            #self.control_objects_limits()
+            self.control_objects_limits()
             # publish image
             img = self.camera.capture_rgb()
             img_ = np.ascontiguousarray(img).tostring()
@@ -66,7 +69,11 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
             print("Resolution:",img.shape)
 
             # publish object position
-            # TBD
+            pos_msg = std_msgs.msg.Float32MultiArray()
+            obj_pos = self.objects['cube'].get_position()
+            print(obj_pos)
+            pos_msg.data = obj_pos 
+            self.objpos_publisher.publish(pos_msg)
 
         else:
             print(self._t)
@@ -96,7 +103,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         '''
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
-            if z < 0.20 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
+            if z < 0.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
                 self.objects[obj].set_pose(pose=self.cube_pos + [0, 0, 0, 1])
 
 

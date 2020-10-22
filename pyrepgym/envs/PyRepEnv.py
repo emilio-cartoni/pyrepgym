@@ -15,7 +15,6 @@ from ias_coppelia_sim_core.ros_utils import TSLogger, RobotLogger
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
 OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
-CAMERA_DELAY = 5
 
 macro_space = spaces.Box(
                           low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
@@ -278,9 +277,8 @@ class PyRepEnv(gym.Env):
         return observation, reward, done, info
 
     def close(self):
-        ''' Close simulation '''
-        self.robot.stop_simulation()
-        self.robot.__del__()
+        # TODO Close controllers here?
+        pass
 
     def step_joints(self, joints):
         ''' Change joint position -- Debug purposes '''
