@@ -25,8 +25,8 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         ROSCSControllerIiwasAirHockey._load_scene_components(self, **kwargs)
         # load camera
         self.camera = RealSense.create(color=True, depth=False,
-                                       position=[-0.9, 0.1, 1.1],
-                                       orientation=[np.pi, 0., 0.])
+                                       position=[-0.9, 0., 1.1],
+                                       orientation=[np.pi, 0., np.pi/2])
 
         self.camera.set_handle_explicitly()
         self.camera.set_model_collidable(False)

@@ -229,7 +229,7 @@ class PyRepEnv(gym.Env):
             image = self.get_new_camera()
             rgb = np.frombuffer(image, dtype=np.float32).reshape(480, 640, 3)
             print("Rendering obtained...")            
-            rgb = cv2.resize(rgb, (320,240)).astype('uint8')
+            rgb = cv2.resize(rgb*256, (320,240)).astype('uint8')
         else:
             rgb = self.no_retina.astype('uint8')
 
