@@ -109,4 +109,5 @@ if __name__ == '__main__':
 
     cs_controller = AwesomeROSControllerIiwas(time_step=time_step)
     cs_controller.open_simulation()
+    cs_controller.start_simulation()
     cs_controller.spin(real_time)
