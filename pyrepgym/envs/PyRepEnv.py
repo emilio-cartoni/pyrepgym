@@ -1,4 +1,4 @@
-from vrep_iiwas.base import CSConntrollerIiwas
+from ias_coppelia_sim_iiwas.base import CSControllerIiwasAirHokey
 import numpy as np
 import gym
 from gym import spaces
@@ -77,7 +77,7 @@ class PyRepEnv(gym.Env):
                 mode: (string), one of 'human' or 'console'
         '''
         self.headless=render_mode != "human"
-        self.robot=CSConntrollerIiwas(headless=self.headless,
+        self.robot=CSControllerIiwasAirHokey(headless=self.headless,
                                         auto_start=False)
 
         self.robot.open_simulation()
@@ -215,7 +215,7 @@ class PyRepEnv(gym.Env):
         self.robot.wait_for_grasp(gripper)
 
     def goHome(self, duration=3.0):
-        self.robot.goto_joint('LEFT_ARM', np.zeros((1,7)), np.array([duration]))
+        self.robot.goto_joint('LEFT_ARM', np.array([0,-0.20,0,-1,0,1.1,0]), np.array([duration]))
         self.robot.wait_for_goto('LEFT_ARM')
 
     def render(self, mode="console"):

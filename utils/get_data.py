@@ -14,12 +14,12 @@ to regress the weights of a neural network for inverse kinematics.
 
 env = gym.make("PyRepEnv-v0", render_mode="console")
 env.reset()
-make_grid()
+
 seed = np.random.randint(1000000)
 datafile = "data_explore_{}".format(seed)
 data = []
 for k in range(5000):
-    p = env.step_joints(np.zeros(7))
+    p = env.goHome()
     p = env.step_explore(True)
     data.append(np.hstack(p))
     if k % 500 == 0:

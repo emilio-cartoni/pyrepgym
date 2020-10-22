@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 
 allData = np.loadtxt('mergedData')
 
-filteredData = allData[(allData[:,2+7] > 0.35) & 
-                       (allData[:,2+7] < 0.65) &
-                       (allData[:,0+7] > -0.40) &
-                       (allData[:,0+7] < 0.25) &
-                       (allData[:,1+7] > -0.25) &
-                       (allData[:,1+7] < 0.50), :]
+filteredData = allData[(allData[:,2+7] > 0.15) & 
+                       (allData[:,2+7] < 0.45) &
+                       (allData[:,0+7] > -1.25) &
+                       (allData[:,0+7] < -0.55) &
+                       (allData[:,1+7] > -0.75) &
+                       (allData[:,1+7] < 0.75), :]
 
 filteredData = filteredData[filteredData[:,3] < 0, :]
 
