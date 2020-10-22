@@ -29,6 +29,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
                                        orientation=[np.pi, 0., 0.])
 
         self.camera.set_handle_explicitly()
+        self.camera.set_model_collidable(False)
         # create object
         self.makeObject()
         handles, poses = make_grid(macro_space)

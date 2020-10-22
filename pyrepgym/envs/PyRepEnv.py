@@ -8,6 +8,7 @@ import cv2
 import time
 import rospy
 import numpy as np
+import std_msgs.msg
 import sensor_msgs.msg
 from ias_coppelia_sim_core.ros_utils import CSCommandClient
 from ias_coppelia_sim_core.ros_utils import CSGotoActionClient, CSGripperCommandActionClient
@@ -52,6 +53,7 @@ class PyRepEnv(gym.Env):
 
         obj_obs = {}
         used_objects = ['cube']
+
         for obj in used_objects:
             high = np.array([np.finfo(np.float32).max,
                              np.finfo(np.float32).max,
@@ -87,6 +89,9 @@ class PyRepEnv(gym.Env):
         self.last_image = None
         self.fresh_image = False
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
+        self.last_objpos = None
+        self.objects = {'cube' : None}
+        rospy.Subscriber(OBJPOS_TOPIC_NAME, std_msgs.msg.Float32MultiArray, self.receive_objpos)
         print("End ROS init")
 
         self.timestep = 0
@@ -98,6 +103,12 @@ class PyRepEnv(gym.Env):
         print("Received camera image.")
         self.last_image = image
         self.fresh_image = True
+
+    def receive_objpos(self, objpos):
+        print("Received object position.")
+        self.last_objpos = objpos
+        print("objpos.data:", objpos.data)
+        self.objects['cube'] = objpos.data
 
     def get_new_camera(self):
         print("Wait for new camera image...")
@@ -122,9 +133,9 @@ class PyRepEnv(gym.Env):
         self.goal_idx += 1
         self.goal = self.goals[self.goal_idx]
 
-        for obj in self.goal.initial_state.keys():
-            pose = self.goal.initial_state[obj]
-            self.objects[obj].set_pose(pose)
+#        for obj in self.goal.initial_state.keys():
+#            pose = self.goal.initial_state[obj]
+#            self.objects[obj].set_pose(pose)
 
         for obj in self.goal.final_state.keys():
             self.goal.final_state[obj] = self.goal.final_state[obj][:3]
@@ -138,7 +149,7 @@ class PyRepEnv(gym.Env):
         for obj in final_state.keys():
             if obj not in self.objects:
                 pass
-            p = np.array(self.objects[obj].get_position())
+            p = np.array(self.objects[obj])
             p_goal = np.array(final_state[obj][:3])
             pos_dist = np.linalg.norm(p_goal-p)
             # Score goes down to 0.25 within 10cm
