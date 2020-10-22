@@ -1,36 +1,45 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import pyrepgym
-import gym
-from pyrepgym.envs.grid import make_grid
 from real_robots.envs import Goal
+import rospy
+from pyrepgym.envs.PyRepEnv import macro_space
+import cv2
 
-env = gym.make("PyRepEnv-v0", render_mode='console')
-env.reset()
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
+
+from simlaunch import AwesomeROSControllerIiwas
+
+rospy.init_node('coppelia_sim_iiwas_node')
+
+time_step = 0.05
+real_time = True
+
+cs_controller = AwesomeROSControllerIiwas(time_step=time_step)
+cs_controller.open_simulation()
+cs_controller.start_simulation()
+#cs_controller.spin(real_time)
+
 goals = []
 for n in range(50):
     print("Generating Goal {}".format(n))
 
-    action = env.action_space.sample()
-    action['render'] = True
-    obj_pos = action["macro_action"][0]
-    env.objects['cube'].set_position(np.hstack([obj_pos, 0.37]))
-    env.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
-    action["macro_action"] = None
-    obs, _, _, _ = env.step(action)
-    retina1 = obs['retina']
-    initial_pose = env.objects['cube'].get_pose()
+    obj_pos = macro_space.sample()[0]
+    cs_controller.objects['cube'].set_position(np.hstack([obj_pos, 0.19]))
+    cs_controller.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
+    rgb = cs_controller.camera.capture_rgb()
+    retina1 = cv2.resize(rgb*256, (320,240)).astype('uint8')
+    initial_pose = cs_controller.objects['cube'].get_pose()
 
-    action = env.action_space.sample()
-    action['render'] = True
-    obj_pos = action["macro_action"][0]
-    env.objects['cube'].set_position(np.hstack([obj_pos, 0.37]))
-    env.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
-    action["macro_action"] = None
-    obs, _, _, _ = env.step(action)
-    retina2 = obs['retina']
-    final_pose = env.objects['cube'].get_pose()
 
+    obj_pos = macro_space.sample()[0]
+    cs_controller.objects['cube'].set_position(np.hstack([obj_pos, 0.19]))
+    cs_controller.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
+    rgb = cs_controller.camera.capture_rgb()
+    retina2 = cv2.resize(rgb*256, (320,240)).astype('uint8')
+    final_pose = cs_controller.objects['cube'].get_pose()
 
     goal = Goal()
     goal.challenge = '2D'
@@ -43,9 +52,9 @@ for n in range(50):
 
     goals.append(goal)
 
-env.close()
 
 np.savez('allGoalsPyRep.npy', goals)
+
 
 for n, g in enumerate(goals):
     plt.figure()
