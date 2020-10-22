@@ -73,8 +73,8 @@ class PyRepEnv(gym.Env):
         self.no_mask = self.observation_space.spaces['mask'].sample()*0
         self.goal = Goal(retina=self.observation_space.spaces['goal'].sample()*0)
 
-        self.table_baseline=0.42
-        self.table_above=0.6
+        self.table_baseline=0.25
+        self.table_above=0.43
         self.cube_on_table = 0.36902
         self.move_duration=np.array([3])
         self.ik=Iknn()
@@ -173,7 +173,7 @@ class PyRepEnv(gym.Env):
         new_pos = pos.copy()
         new_pos[0] = new_pos[0] + 0.8272
         new_pos[1] = new_pos[1] + 0.2564
-        return new_pos
+        return pos
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
