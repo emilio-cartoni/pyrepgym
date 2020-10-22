@@ -84,7 +84,7 @@ class PyRepEnv(gym.Env):
         self.robot = CSGotoActionClient('/iiwas_control/iiwas/goto')
         self.robot_gripper = CSGripperCommandActionClient('/ezgripper/ezgripper_left')
         self.cscommandcl = CSCommandClient(sl=SL)
-        self.last_image = self.no_retina
+        self.last_image = None
         self.fresh_image = False
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
         print("End ROS init")
@@ -98,6 +98,14 @@ class PyRepEnv(gym.Env):
         print("Received camera image.")
         self.last_image = image
         self.fresh_image = True
+
+    def get_new_camera(self):
+        print("Wait for new camera image...")
+        self.fresh_image = False
+        while not self.fresh_image:
+            time.sleep(1)
+        print("...done")
+        return self.last_image.data
 
     def load_goals(self):
         self.goals = list(np.load(
@@ -201,13 +209,14 @@ class PyRepEnv(gym.Env):
     def reset(self):
         self.timestep = 0
         self.goHome()
-        self.grasp(0, 100)
+        self.grasp(15, 100)
         return self.get_observation()
 
     def get_observation(self, render=True):
 
         if render:
-            rgb = np.frombuffer(self.last_image.data, dtype=np.float32).reshape(480, 640, 3)
+            image = self.get_new_camera()
+            rgb = np.frombuffer(image, dtype=np.float32).reshape(480, 640, 3)
             print("Rendering obtained...")            
             rgb = cv2.resize(rgb, (320,240)).astype('uint8')
         else:
@@ -250,12 +259,6 @@ class PyRepEnv(gym.Env):
             self.move_to(arm="LEFT_ARM", pos=p2_down)
             self.move_to(arm="LEFT_ARM", pos=p2_up)
             self.goHome()
-            print("Wait for new camera image...")
-            self.fresh_image = False
-            while not self.fresh_image:
-                time.sleep(1)
-            print("...done")
-
         else:
             gpos = None
             print("No action to execute, just observe.")
