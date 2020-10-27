@@ -28,20 +28,20 @@ Demo.py will make 5 random movements over the table.
 
 Launch:  
 - roscore  
-- simlaunch.py  
+- simlaunch.py (set publishImage = True)  
 - local\_evaluation.py (in REAL2020_starter_kit)  
 
 You can edit local\_evaluation.py to run either the intrinsic phase or the extrinsic phase, or to modify their length.  
 For the intrinsic phase, just change the number of steps (each step is 1 action).  
 For the extrinsic phase, you can set both the number of trials (number of goals to pursue) and the length of each trial (how many actions are allowed for each goal).  
 
-**RUNNING THE BASELINE ON THE PHYSICAL ROBOT (UNTESTED)**
+**RUNNING THE BASELINE ON THE PHYSICAL ROBOT (UNTESTED)**  
 Launch:  
-- roscore  
+- roscore?  
 - imageGenerator.py
 - local\_evaluation.py (in REAL2020_starter_kit)  
 
-**TESTING WITH IMAGE GENERATOR IN SIM (TBD)**
+**TESTING WITH IMAGE GENERATOR IN SIM**
 Launch:  
 - roscore  
 - simlaunch.py (set publishImage = False)  
