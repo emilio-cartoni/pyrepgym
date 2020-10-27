@@ -105,10 +105,10 @@ class PyRepEnv(gym.Env):
         self.fresh_image = True
 
     def receive_objpos(self, objpos):
-        print("Received object position.")
+        #print("Received object position.")
         self.last_objpos = objpos
-        print("objpos.data:", objpos.data)
-        self.objects['cube'] = objpos.data
+        #print("objpos.data:", objpos.data)
+        self.objects['cube'] = objpos.data[:3]
 
     def get_new_camera(self):
         print("Wait for new camera image...")

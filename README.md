@@ -44,9 +44,14 @@ Launch:
 **TESTING WITH IMAGE GENERATOR IN SIM (TBD)**
 Launch:  
 - roscore  
-- simlaunch_testimage.py _not available yet!_  
-- imageGenerator.py _not available yet!_  
+- simlaunch.py (set publishImage = False)  
+- imageGenerator.py_  
 - local\_evaluation.py (in REAL2020_starter_kit)  
+
+
+**NOTES:**
+The current movement should be a linear trajectory between two points on the table;  
+however, since the robot is actually instructed to go from one joint position (corresponding to the first point) to another joint position (corresponding to second point) it is not garaunteed that the trajectory is linear. **This can also cause the robot to hit the shelf if the action_space limits are close to it!**
 
 
 

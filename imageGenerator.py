@@ -15,13 +15,12 @@ CAMERA_DELAY = 5
 
 class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
-    def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False, publishImage=False):
-        self.publishImage = publishImage
+    def __init__(self, headless=True, verbose=True, time_step=0.05, auto_start=False):
         ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
         self.last_image = -10000
         self.cube_pos =[-1.0, -0.15, 0.191]
         self.objects = {}
-        
+        self.position_data = self.cube_pos + [0, 0, 0, 1]
 
     def _load_scene_components(self, **kwargs):
         ROSCSControllerIiwasAirHockey._load_scene_components(self, **kwargs)
@@ -39,50 +38,37 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
     def _start_ros_interface(self):
         ROSCSControllerIiwasAirHockey._start_ros_interface(self)
-
-        if self.publishImage:
-            # publisher for camera
-            self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
-                                                   sensor_msgs.msg.Image,
-                                                   queue_size=1)
-        # publisher for object position
-        self.objpos_publisher = rospy.Publisher(OBJPOS_TOPIC_NAME,
-                                               std_msgs.msg.Float32MultiArray, #to be changed
+        # publisher for camera
+        self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
+                                               sensor_msgs.msg.Image,
                                                queue_size=1)
+        # publisher for object position
+        self.objpos_subscriber = rospy.Subscriber(OBJPOS_TOPIC_NAME,
+                                               std_msgs.msg.Float32MultiArray, #to be changed
+                                               self.receive_objpos)
 
 
     def _publish(self):
         ROSCSControllerIiwasAirHockey._publish(self)
 
-        
         if (self._t - self.last_image) > (CAMERA_DELAY - 0.001):
             # reset object if needed
-            self.control_objects_limits()
+            self.set_cube_pose(self.position_data)
 
-            if self.publishImage:
-                # publish image
-                img = self.camera.capture_rgb()
-                img_ = np.ascontiguousarray(img).tostring()
+            # publish image
+            img = self.camera.capture_rgb()
+            img_ = np.ascontiguousarray(img).tostring()
 
-                header = std_msgs.msg.Header()
-                header.stamp = rospy.Time(self._t)
+            header = std_msgs.msg.Header()
+            header.stamp = rospy.Time(self._t)
 
-                image_msg = sensor_msgs.msg.Image()
-                image_msg.header = header
-                image_msg.data = img_
-                self.video_publisher.publish(image_msg)
-                self.last_image = self._t
-                print("camera taken", self._t)
-                print("Resolution:",img.shape)
-
-            # publish object position
-            pos_msg = std_msgs.msg.Float32MultiArray()
-            obj_pos = self.objects['cube'].get_pose()
-            #print(obj_pos)
-            pos_msg.data = obj_pos 
-            self.objpos_publisher.publish(pos_msg)
-
-        print(self._t)
+            image_msg = sensor_msgs.msg.Image()
+            image_msg.header = header
+            image_msg.data = img_
+            self.video_publisher.publish(image_msg)
+            self.last_image = self._t
+            print("camera taken", self._t)
+            print("Resolution:",img.shape)
 
     def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
         ''' Make a standard cuboid object
@@ -103,19 +89,18 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         object_handle.set_bullet_friction(10e9)
         self.objects['cube'] = object_handle
 
-    def control_objects_limits(self):
-        '''
-        reset positions if an object goes out of the limits
-        '''
-        for obj in self.objects:
-            x, y, z = self.objects[obj].get_position()
-            if z < 0.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=self.cube_pos + [0, 0, 0, 1])
+    def receive_objpos(self, objpos):
+        print("Received object position.", objpos.data)    
+        self.position_data = objpos.data
+        self.set_cube_pose(objpos.data)
+
+    def set_cube_pose(self, obj_pose):
+        self.objects['cube'].set_pose(pose=obj_pose)
 
 
 
 if __name__ == '__main__':
-    rospy.init_node('coppelia_sim_iiwas_node')
+    rospy.init_node('image_generator_node')
 
     time_step = 0.05
     real_time = True
