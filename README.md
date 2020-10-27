@@ -38,7 +38,7 @@ For the extrinsic phase, you can set both the number of trials (number of goals 
 **RUNNING THE BASELINE ON THE PHYSICAL ROBOT (UNTESTED)**
 Launch:  
 - roscore  
-- imageGenerator.py _not available yet!_  
+- imageGenerator.py
 - local\_evaluation.py (in REAL2020_starter_kit)  
 
 **TESTING WITH IMAGE GENERATOR IN SIM (TBD)**
@@ -53,7 +53,7 @@ Launch:
 1) The current movement should be a linear trajectory between two points on the table;  
 however, since the robot is actually instructed to go from one joint position (corresponding to the first point) to another joint position (corresponding to second point) it is not garaunteed that the trajectory is linear. **This can also cause the robot to hit the shelf if the action_space limits are close to it!**  
 
-2) PyRepEnv.py, simlaunch.py and imageGenerator.py have IMAGE\_TOPIC\_NAME and OBJPOS\_TOPIC\_NAME variables to change ROS topic names for the image and object position messagges.
+2) PyRepEnv.py, simlaunch.py and imageGenerator.py have an IMAGE\_TOPIC\_NAME variable to change ROS topic name for the image messages.
 
 
 

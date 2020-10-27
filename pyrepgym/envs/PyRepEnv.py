@@ -13,9 +13,10 @@ import sensor_msgs.msg
 from ias_coppelia_sim_core.ros_utils import CSCommandClient
 from ias_coppelia_sim_core.ros_utils import CSGotoActionClient, CSGripperCommandActionClient
 from ias_coppelia_sim_core.ros_utils import TSLogger, RobotLogger
+import tf2_ros
+import geometry_msgs.msg
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
-OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
 
 macro_space = spaces.Box(
                           low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
@@ -91,7 +92,8 @@ class PyRepEnv(gym.Env):
         rospy.Subscriber(IMAGE_TOPIC_NAME, sensor_msgs.msg.Image, self.receive_camera)
         self.last_objpos = None
         self.objects = {'cube' : None}
-        rospy.Subscriber(OBJPOS_TOPIC_NAME, std_msgs.msg.Float32MultiArray, self.receive_objpos)
+        self.tfBuffer = tf2_ros.Buffer()
+        self.objpos_listener = tf2_ros.TransformListener(self.tfBuffer)
         print("End ROS init")
 
         self.timestep = 0
@@ -103,12 +105,6 @@ class PyRepEnv(gym.Env):
         print("Received camera image.")
         self.last_image = image
         self.fresh_image = True
-
-    def receive_objpos(self, objpos):
-        #print("Received object position.")
-        self.last_objpos = objpos
-        #print("objpos.data:", objpos.data)
-        self.objects['cube'] = objpos.data[:3]
 
     def get_new_camera(self):
         print("Wait for new camera image...")
@@ -223,6 +219,14 @@ class PyRepEnv(gym.Env):
         self.grasp(15, 100)
         return self.get_observation()
 
+    def update_objpos(self):
+        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'orange', rospy.Time())
+        x = msg.transform.translation.x
+        y = msg.transform.translation.y
+        z = msg.transform.translation.z
+        self.objects['cube'] = [x, y, z]
+
+
     def get_observation(self, render=True):
 
         if render:
@@ -233,10 +237,12 @@ class PyRepEnv(gym.Env):
         else:
             rgb = self.no_retina.astype('uint8')
 
+        self.update_objpos()
+
         observation = {'position': None,
                        'retina': rgb,
                        'mask' : self.no_mask,
-                       'object_positions' : None,
+                       'object_positions' : self.objects['cube'],
                        'goal' : self.goal.retina,
                        'goal_mask' : self.goal.mask,
                        'goal_positions' : self.goal.final_state

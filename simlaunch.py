@@ -8,9 +8,10 @@ from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
 from pyrepgym.envs.grid import make_grid
 from pyrepgym.envs.PyRepEnv import macro_space
+import tf2_ros
+import geometry_msgs.msg
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
-OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
 CAMERA_DELAY = 5
 
 class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
@@ -45,10 +46,8 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
             self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
                                                    sensor_msgs.msg.Image,
                                                    queue_size=1)
-        # publisher for object position
-        self.objpos_publisher = rospy.Publisher(OBJPOS_TOPIC_NAME,
-                                               std_msgs.msg.Float32MultiArray, #to be changed
-                                               queue_size=1)
+
+        self.objpos_publisher = tf2_ros.TransformBroadcaster()
 
 
     def _publish(self):
@@ -76,11 +75,22 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
                 print("Resolution:",img.shape)
 
             # publish object position
-            pos_msg = std_msgs.msg.Float32MultiArray()
             obj_pos = self.objects['cube'].get_pose()
-            #print(obj_pos)
-            pos_msg.data = obj_pos 
-            self.objpos_publisher.publish(pos_msg)
+
+            t = geometry_msgs.msg.TransformStamped()
+            t.header.stamp = rospy.Time(self._t)
+            t.header.frame_id = "coppelia_origin" # ??
+            t.child_frame_id = "orange" # ??
+            t.transform.translation.x = obj_pos[0]
+            t.transform.translation.y = obj_pos[1]
+            t.transform.translation.z = obj_pos[2]
+            t.transform.rotation.x = obj_pos[3]
+            t.transform.rotation.y = obj_pos[4]
+            t.transform.rotation.z = obj_pos[5]
+            t.transform.rotation.w = obj_pos[6]
+
+            self.objpos_publisher.sendTransform(t)
+
 
         print(self._t)
 

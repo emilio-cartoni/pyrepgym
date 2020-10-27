@@ -9,9 +9,10 @@ from pyrep.const import PrimitiveShape
 from pyrepgym.envs.grid import make_grid
 from pyrepgym.envs.PyRepEnv import macro_space
 import time
+import tf2_ros
+import geometry_msgs.msg
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
-OBJPOS_TOPIC_NAME = 'kai/has/to/look/up/another/final/topic/name'
 CAMERA_DELAY = 5
 
 class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
@@ -21,16 +22,14 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
         self.last_image = -10000
         self.cube_pos =[-1.0, -0.15, 0.191]
         self.objects = {}
-        self.position_data = self.cube_pos + [0, 0, 0, 1]
 
         # publisher for camera
         self.video_publisher = rospy.Publisher(IMAGE_TOPIC_NAME,
                                                sensor_msgs.msg.Image,
                                                queue_size=1)
-        # publisher for object position
-        self.objpos_subscriber = rospy.Subscriber(OBJPOS_TOPIC_NAME,
-                                               std_msgs.msg.Float32MultiArray, #to be changed
-                                               self.receive_objpos)
+
+        self.tfBuffer = tf2_ros.Buffer()
+        self.objpos_listener = tf2_ros.TransformListener(self.tfBuffer)
 
     def _load_scene_components(self, **kwargs):
         CSControllerIiwasAirHokey._load_scene_components(self, **kwargs)
@@ -48,8 +47,17 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
 
     def publish(self):
         # set object position
-        self.set_cube_pose(self.position_data)
-        print("Cube set to:", self.position_data)
+        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'orange', rospy.Time())
+        x = msg.transform.translation.x
+        y = msg.transform.translation.y
+        z = msg.transform.translation.z
+        rx = msg.transform.rotation.x
+        ry = msg.transform.rotation.y
+        rz = msg.transform.rotation.z
+        rw = msg.transform.rotation.w
+
+        self.set_cube_pose([x, y, z, rx, ry, rz, rw])
+        print("Cube set to:", [x, y, z, rx, ry, rz, rw])
 
         # publish image
         img = self.camera.capture_rgb()
@@ -84,11 +92,6 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
             position=self.cube_pos)
         object_handle.set_bullet_friction(10e9)
         self.objects['cube'] = object_handle
-
-    def receive_objpos(self, objpos):
-        #print("Received object position.", objpos.data)    
-        self.position_data = objpos.data
-        self.set_cube_pose(objpos.data)
 
     def set_cube_pose(self, obj_pose):
         self.objects['cube'].set_pose(pose=obj_pose)
