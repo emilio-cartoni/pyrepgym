@@ -20,7 +20,7 @@ You may skip installPyRep.sh and installROS.sh if you have already PyRep+ROS con
 It is possible to run a movement demo by running:  
 - roscore  
 - simlaunch.py  
-- demo.py  
+- demos/demo.py  
 
 Demo.py will make 5 random movements over the table.  
 
@@ -50,8 +50,10 @@ Launch:
 
 
 **NOTES:**
-The current movement should be a linear trajectory between two points on the table;  
-however, since the robot is actually instructed to go from one joint position (corresponding to the first point) to another joint position (corresponding to second point) it is not garaunteed that the trajectory is linear. **This can also cause the robot to hit the shelf if the action_space limits are close to it!**
+1) The current movement should be a linear trajectory between two points on the table;  
+however, since the robot is actually instructed to go from one joint position (corresponding to the first point) to another joint position (corresponding to second point) it is not garaunteed that the trajectory is linear. **This can also cause the robot to hit the shelf if the action_space limits are close to it!**  
+
+2) PyRepEnv.py, simlaunch.py and imageGenerator.py have IMAGE\_TOPIC\_NAME and OBJPOS\_TOPIC\_NAME variables to change ROS topic names for the image and object position messagges.
 
 
 
