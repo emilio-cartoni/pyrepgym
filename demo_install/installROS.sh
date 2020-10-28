@@ -29,3 +29,30 @@ ias update
 ias make
 
 
+### ADDITIONAL STEPS FOR TF2 messages
+sudo apt-get install -y python3-empy
+
+cd
+
+mkdir -p ~/catkin_ws/src; cd ~/catkin_ws
+catkin_make
+source devel/setup.bash
+wstool init
+wstool set -y src/geometry2 --git https://github.com/ros/geometry2 -v 0.6.5
+wstool up
+rosdep install --from-paths src --ignore-src -y -r
+
+catkin_make --cmake-args \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+            -DPYTHON_INCLUDE_DIR=/usr/include/python3.5m \
+            -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.5m.so
+
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+
+
+
+
+
+
