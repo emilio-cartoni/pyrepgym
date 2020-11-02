@@ -176,8 +176,8 @@ class PyRepEnv(gym.Env):
         '''
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
-            if z < 0.35 or x > 0.0: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=self.cube_pos +[0, 0, 0, 1])      # [*position, *quaternion]
+            if z < 0.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
+                self.objects[obj].set_pose(pose=self.cube_pos + [0, 0, 0, 1])
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
