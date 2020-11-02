@@ -36,9 +36,10 @@ class PyRepEnv(gym.Env):
         # Actions are defined as pairs of points on the 2D space
         # of the table (start point, destination point)
         self.macro_space = spaces.Box(
-                                  low=np.array([[-0.35, -0.19], [-0.35, -0.19]]),
-                                  high=np.array([[-0.10, 0.39], [-0.10,  0.39]]),
-                                  dtype=float)
+                           low=np.array([[-1.20, -0.44], [-1.20, -0.44]]),
+                           high=np.array([[-0.90, 0.44], [-0.90,  0.44]]),
+                           dtype=float)
+
 
         self.action_space = spaces.Dict({
                             "macro_action": self.macro_space,
@@ -65,9 +66,9 @@ class PyRepEnv(gym.Env):
         self.no_mask = self.observation_space.spaces['mask'].sample()*0
         self.goal = Goal(retina=self.observation_space.spaces['goal'].sample()*0)
 
-        self.table_baseline=0.42
-        self.table_above=0.6
-        self.cube_on_table = 0.36902
+        self.table_baseline=0.25
+        self.table_above=0.43
+        self.cube_pos =[-1.0, -0.15, 0.191]
         self.move_duration=np.array([3])
         self.ik=Iknn()
         self.objects={}
@@ -88,10 +89,9 @@ class PyRepEnv(gym.Env):
 
 
     def setupCamera(self):
-        cam = RealSense.create(color=True,  # color and depth sensors can be handeled turned
-                               depth=True,  # off individually, to save compute.
-                               position=[0., 0.1, 1.1],
-                               orientation=[np.pi, 0., 0.])
+        cam = RealSense.create(color=True, depth=False,
+                                       position=[-0.9, 0., 1.1],
+                                       orientation=[np.pi, 0., np.pi/2])
 
         # center the color sensor
         cam.set_position(position=-RealSense.COLOR_SENSOR_OFFSET, relative_to=cam)
@@ -161,14 +161,12 @@ class PyRepEnv(gym.Env):
 
         '''
 
-        #pos=self.action_space.sample()['macro_action'][0]
-        pos = [-0.2, 0.1]
         object_handle=Shape.create(
             mass=0.002,
             type=PrimitiveShape.CUBOID,
             color=color,
             size=size,
-            position=[pos[0], pos[1], self.cube_on_table])
+            position=self.cube_pos)
         object_handle.set_bullet_friction(10e9)
         self.objects['cube'] = object_handle
 
@@ -179,7 +177,7 @@ class PyRepEnv(gym.Env):
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
             if z < 0.35 or x > 0.0: #fallen off the table or too far
-                self.objects[obj].set_pose(pose=[-0.2, 0.1, self.cube_on_table, 0, 0, 0, 1])      # [*position, *quaternion]
+                self.objects[obj].set_pose(pose=self.cube_pos +[0, 0, 0, 1])      # [*position, *quaternion]
 
     def move_to(self, arm, pos=None, joints=None):
         ''' Move gripper to next position, expressed in joint space or
