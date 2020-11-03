@@ -4,7 +4,7 @@ from pyrep.const import PrimitiveShape
 import itertools
 
 
-def make_grid(box_action_space):
+def make_grid(box_action_space, points=3):
     ''' Shows a grid of points delimitin the space of action in the x an y directions
     '''
 
@@ -18,8 +18,8 @@ def make_grid(box_action_space):
     low_y = box_action_space.low[0][1]
     high_y =  box_action_space.high[0][1]
 
-    xs = np.linspace(low_x, high_x, 3)
-    ys = np.linspace(low_y, high_y, 3)
+    xs = np.linspace(low_x, high_x, points)
+    ys = np.linspace(low_y, high_y, points)
     poses = [p for p in itertools.product(xs, ys)]
 
     handles = []

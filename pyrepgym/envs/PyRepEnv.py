@@ -68,7 +68,7 @@ class PyRepEnv(gym.Env):
 
         self.table_baseline=0.25
         self.table_above=0.43
-        self.cube_pos =[-1.0, -0.15, 0.191]
+        self.cube_pos =[-1.0, -0.15, 0.19001]
         self.move_duration=np.array([3])
         self.ik=Iknn()
         self.objects={}
@@ -176,7 +176,7 @@ class PyRepEnv(gym.Env):
         '''
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
-            if z < 0.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
+            if z < 0.18 or x < -1.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
                 self.objects[obj].set_pose(pose=self.cube_pos + [0, 0, 0, 1])
 
     def move_to(self, arm, pos=None, joints=None):
