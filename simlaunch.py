@@ -16,7 +16,7 @@ CAMERA_DELAY = 5
 
 class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
-    def __init__(self, headless=False, verbose=True, time_step=0.05, auto_start=False, publishImage=True):
+    def __init__(self, headless=True, verbose=True, time_step=0.05, auto_start=False, publishImage=False):
         self.publishImage = publishImage
         ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
         self.last_image = -10000
