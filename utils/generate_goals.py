@@ -14,7 +14,7 @@ for n in range(50):
     action = env.action_space.sample()
     action['render'] = True
     obj_pos = action["macro_action"][0]
-    env.objects['cube'].set_position(np.hstack([obj_pos, 0.37]))
+    env.objects['cube'].set_position(np.hstack([obj_pos, env.cube_pos[2]]))
     env.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
     action["macro_action"] = None
     obs, _, _, _ = env.step(action)
@@ -24,7 +24,7 @@ for n in range(50):
     action = env.action_space.sample()
     action['render'] = True
     obj_pos = action["macro_action"][0]
-    env.objects['cube'].set_position(np.hstack([obj_pos, 0.37]))
+    env.objects['cube'].set_position(np.hstack([obj_pos, env.cube_pos[2]]))
     env.objects['cube'].set_quaternion(quaternion=[0, 0, 0, 1])
     action["macro_action"] = None
     obs, _, _, _ = env.step(action)
