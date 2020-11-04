@@ -10,7 +10,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
 
-from simlaunch import AwesomeROSControllerIiwas
+from imageGenerator import AwesomeROSControllerIiwas
 
 rospy.init_node('coppelia_sim_iiwas_node')
 
@@ -20,7 +20,12 @@ real_time = True
 cs_controller = AwesomeROSControllerIiwas(time_step=time_step)
 cs_controller.open_simulation()
 cs_controller.start_simulation()
-#cs_controller.spin(real_time)
+
+cs_controller.goto_joint('LEFT_ARM', np.array([0,-0.20,0,-1,0,1.1,0]),
+                            np.array([3]))
+cs_controller.wait_for_goto('LEFT_ARM')
+cs_controller.grasp('LEFT_GRIPPER',15, 100)
+cs_controller.wait_for_grasp('LEFT_GRIPPER')
 
 goals = []
 for n in range(50):
