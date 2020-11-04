@@ -103,6 +103,12 @@ if __name__ == '__main__':
     cs_controller = AwesomeROSControllerIiwas()
     cs_controller.open_simulation()
     cs_controller.start_simulation()
+    cs_controller.goto_joint('LEFT_ARM', np.array([0,-0.20,0,-1,0,1.1,0]),
+                                np.array([3]))
+    cs_controller.wait_for_goto('LEFT_ARM')
+    cs_controller.grasp('LEFT_GRIPPER',15, 100)
+    cs_controller.wait_for_grasp('LEFT_GRIPPER')
+
     while True:
         time.sleep(CAMERA_DELAY)
         cs_controller.step()
