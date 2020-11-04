@@ -119,10 +119,6 @@ class PyRepEnv(gym.Env):
         self.goal_idx += 1
         self.goal = self.goals[self.goal_idx]
 
-        for obj in self.goal.initial_state.keys():
-            pose = self.goal.initial_state[obj]
-            self.objects[obj].set_pose(pose)
-
         for obj in self.goal.final_state.keys():
             self.goal.final_state[obj] = self.goal.final_state[obj][:3]
 
