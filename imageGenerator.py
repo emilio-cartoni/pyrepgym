@@ -42,7 +42,7 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
         self.camera.set_model_collidable(False)
         # create object
         self.makeObject()
-        handles, poses = make_grid(macro_space)
+        #handles, poses = make_grid(macro_space)
 
 
     def publish(self):
