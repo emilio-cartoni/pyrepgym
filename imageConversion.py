@@ -12,6 +12,7 @@ import time
 import tf2_ros
 import geometry_msgs.msg
 import sys
+import cv2
 
 IMAGE_TOPIC_NAME = 'kai/has/to/look/up/the/final/topic/name'
 CAMERA_DELAY = 5
@@ -99,9 +100,10 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
 
 
     def transform(self, pos):
-        self.set_cube_pose(pos)
+        self.set_cube_pose(np.hstack([pos, [0, 0, 0, 1]]))
         self.step()
         img = self.camera.capture_rgb()
+        img = cv2.resize(img*256, (320,240)).astype('uint8')
         return img
 
 if __name__ == '__main__':
@@ -117,9 +119,14 @@ if __name__ == '__main__':
 
     tts = np.load(sys.argv[1], allow_pickle=True)
 
+    n = 0
     for t in tts:
-        t[0][0] = cs_controller.transform(t[0][1])
-        t[2][0] = cs_controller.transform(t[2][1])
+        n = n + 1
+        print(n)
+        pre_img = cs_controller.transform(t[0][1]['cube'])
+        t[0] = (pre_img, t[0][1], t[0][2])
+        post_img = cs_controller.transform(t[2][1]['cube'])
+        t[2] = (post_img, t[2][1], t[2][2])
 
     np.save(sys.argv[1][:-3]+'transformed.npy', tts)
 
