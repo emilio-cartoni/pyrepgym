@@ -136,6 +136,9 @@ class PyRepEnv(gym.Env):
         for obj in self.goal.final_state.keys():
             self.goal.final_state[obj] = self.goal.final_state[obj][:3]
 
+        self.goHome2()
+        self.goHome()
+
         return self.get_observation()
 
     def evaluateGoal(self):
@@ -145,7 +148,7 @@ class PyRepEnv(gym.Env):
         for obj in final_state.keys():
             if obj not in self.objects:
                 pass
-            p = np.array(self.objects[obj])
+            p = np.array(self.objects[obj][:3])
             p_goal = np.array(final_state[obj][:3])
             pos_dist = np.linalg.norm(p_goal-p)
             # Score goes down to 0.25 within 10cm
@@ -209,6 +212,12 @@ class PyRepEnv(gym.Env):
                         joint_group='LEFT_ARM', duration=np.array([duration]))
         self.robot.wait_for_goto()
 
+    def goHome2(self, duration=3.0):
+        self.robot.goto_joint(np.array([np.pi/4,-0.20,0,-1,0,1.1,0]),
+                        joint_group='LEFT_ARM', duration=np.array([duration]))
+        self.robot.wait_for_goto()
+
+
     def render(self, mode="console"):
         # @TODO do we need to implement this?
         pass
@@ -224,7 +233,11 @@ class PyRepEnv(gym.Env):
         x = msg.transform.translation.x
         y = msg.transform.translation.y
         z = msg.transform.translation.z
-        self.objects['cube'] = [x, y, z]
+        rx = msg.transform.rotation.x
+        ry = msg.transform.rotation.y
+        rz = msg.transform.rotation.z
+        rw = msg.transform.rotation.w
+        self.objects['cube'] = [x, y, z, rx, ry, rz, rw]
 
 
     def get_observation(self, render=True):

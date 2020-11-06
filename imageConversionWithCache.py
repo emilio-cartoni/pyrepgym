@@ -32,6 +32,7 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
 
         self.tfBuffer = tf2_ros.Buffer()
         self.objpos_listener = tf2_ros.TransformListener(self.tfBuffer)
+        self.cache = {}
 
     def _load_scene_components(self, **kwargs):
         CSControllerIiwasAirHokey._load_scene_components(self, **kwargs)
@@ -100,14 +101,19 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
 
 
     def transform(self, pos):
+        if tuple(pos) in self.cache:
+            print("Cache hit!")
+            return self.cache[tuple(pos)]
+        
         self.set_cube_pose(np.hstack([pos, [0, 0, 0, 1]]))
         self.step()
         img = self.camera.capture_rgb()
         img = cv2.resize(img*256, (320,240)).astype('uint8')
+        self.cache[tuple(pos)] = img
         return img
 
 if __name__ == '__main__':
-    rospy.init_node('image_generator_node')
+    rospy.init_node('image_converter_node')
     cs_controller = AwesomeROSControllerIiwas()
     cs_controller.open_simulation()
     cs_controller.start_simulation()
