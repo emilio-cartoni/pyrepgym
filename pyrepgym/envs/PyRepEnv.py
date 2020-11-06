@@ -237,7 +237,7 @@ class PyRepEnv(gym.Env):
         else:
             rgb = self.no_retina.astype('uint8')
 
-        cube_pos = self.objects['cube'].get_position()
+        cube_pos = self.objects['cube'].get_pose()
 
         obj_pos = {'cube' : cube_pos}
 
