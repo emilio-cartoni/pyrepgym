@@ -229,7 +229,7 @@ class PyRepEnv(gym.Env):
         return self.get_observation()
 
     def update_objpos(self):
-        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'orange', rospy.Time())
+        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'cube', rospy.Time())
         x = msg.transform.translation.x
         y = msg.transform.translation.y
         z = msg.transform.translation.z

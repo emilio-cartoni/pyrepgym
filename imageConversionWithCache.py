@@ -50,7 +50,7 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
 
     def publish(self):
         # set object position
-        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'orange', rospy.Time())
+        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'cube', rospy.Time())
         x = msg.transform.translation.x
         y = msg.transform.translation.y
         z = msg.transform.translation.z

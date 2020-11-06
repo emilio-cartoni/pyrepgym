@@ -79,8 +79,8 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
             t = geometry_msgs.msg.TransformStamped()
             t.header.stamp = rospy.Time(self._t)
-            t.header.frame_id = "coppelia_origin" # ??
-            t.child_frame_id = "orange" # ??
+            t.header.frame_id = "coppelia_origin"
+            t.child_frame_id = "cube"
             t.transform.translation.x = obj_pos[0]
             t.transform.translation.y = obj_pos[1]
             t.transform.translation.z = obj_pos[2]
