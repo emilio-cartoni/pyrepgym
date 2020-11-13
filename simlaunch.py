@@ -20,7 +20,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         self.publishImage = publishImage
         ROSCSControllerIiwasAirHockey.__init__(self, headless, verbose, time_step, auto_start)
         self.last_image = -10000
-        self.cube_pos =[-1.0, -0.15, 0.191]
+        self.cube_pos =[-1.0, 0.0, 0.191]
         self.objects = {}
         
 
@@ -119,7 +119,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
         '''
         for obj in self.objects:
             x, y, z = self.objects[obj].get_position()
-            if z < 0.18 or x > -0.9 or abs(y) > 0.44: #fallen off the table or too far
+            if z < 0.18 or x > -0.9 or abs(y) > 0.40: #fallen off the table or too far
                 self.objects[obj].set_pose(pose=self.cube_pos + [0, 0, 0, 1])
 
 
