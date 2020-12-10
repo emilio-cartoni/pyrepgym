@@ -27,6 +27,14 @@ cs_controller.wait_for_goto('LEFT_ARM')
 cs_controller.grasp('LEFT_GRIPPER',15, 100)
 cs_controller.wait_for_grasp('LEFT_GRIPPER')
 
+from gym import spaces
+
+macro_space = spaces.Box(
+                          low=np.array([[-1.10, -0.30], [-1.10, -0.30]]),
+                          high=np.array([[-0.90, 0.30], [-0.90,  0.30]]),
+                          dtype=float)
+
+
 goals = []
 for n in range(50):
     print("Generating Goal {}".format(n))
