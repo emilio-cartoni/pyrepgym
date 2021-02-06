@@ -53,7 +53,6 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
     def _publish(self):
         ROSCSControllerIiwasAirHockey._publish(self)
 
-        
         if (self._t - self.last_image) > (CAMERA_DELAY - 0.001):
             # reset object if needed
             self.control_objects_limits()
@@ -94,7 +93,7 @@ class AwesomeROSControllerIiwas(ROSCSControllerIiwasAirHockey):
 
         print(self._t)
 
-    def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
+    def makeObject(self, color=[1, 0, 0], size=[0.075, 0.075, 0.085]):
         ''' Make a standard cuboid object
             Args:
                 color: (list or array of 3 floats), RGB color

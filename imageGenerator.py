@@ -74,7 +74,7 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
         print("camera taken", self._t)
         print("Resolution:",img.shape)
 
-    def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
+    def makeObject(self, color=[1, 0, 0], size=[0.075, 0.075, 0.085]):
         ''' Make a standard cuboid object
             Args:
                 color: (list or array of 3 floats), RGB color
