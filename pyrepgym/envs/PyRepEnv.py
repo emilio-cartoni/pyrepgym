@@ -223,7 +223,7 @@ class PyRepEnv(gym.Env):
         new_pos[1] = new_pos[1] + 0.2564
         return pos
 
-    def move_to(self, arm, pos=None, joints=None):
+    def move_to(self, arm, pos=None, joints=None, duration=np.array([10])):
         ''' Move gripper to next position, expressed in joint space or
             x,y,z coordinates.
 
@@ -237,12 +237,12 @@ class PyRepEnv(gym.Env):
             self.robot_sim.goto_joint(
                 'LEFT_ARM',               
                 joints.reshape(1, -1),
-                durations=self.move_duration)          
+                durations=duration)
 
             self.robot.goto_joint(                
                 joints.reshape(1, -1),
                 joint_group='RIGHT_ARM',
-                duration=self.move_duration)
+                duration=duration)
 
             self.robot_sim.wait_for_goto('LEFT_ARM')
             self.robot.wait_for_goto()
@@ -250,7 +250,7 @@ class PyRepEnv(gym.Env):
             pos = self.new_scene_conversion(pos)
             joints=self.ik.get_joints(pos)
             joints[6]=0.5*np.pi
-            self.move_to(arm, joints=joints)
+            self.move_to(arm, joints=joints, duration=duration)
 
     def grasp(self, grasp_amp, torque):
         ''' Move gripper claws
@@ -350,10 +350,10 @@ class PyRepEnv(gym.Env):
                     8 gripper moved up
                     5 go back home
             '''
-            self.move_to(arm="RIGHT_ARM", pos=p1_up)
-            self.move_to(arm="RIGHT_ARM", pos=p1_down)
-            self.move_to(arm="RIGHT_ARM", pos=p2_down)
-            self.move_to(arm="RIGHT_ARM", pos=p2_up)
+            self.move_to(arm="RIGHT_ARM", pos=p1_up, duration=np.array([3]))
+            self.move_to(arm="RIGHT_ARM", pos=p1_down, duration=np.array([10]))
+            self.move_to(arm="RIGHT_ARM", pos=p2_down, duration=np.array([10]))
+            self.move_to(arm="RIGHT_ARM", pos=p2_up, duration=np.array([5]))
             self.goHome()
             rospy.sleep(30)
             self.update_cube()
