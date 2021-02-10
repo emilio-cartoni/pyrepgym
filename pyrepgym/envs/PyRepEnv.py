@@ -13,6 +13,11 @@ import sensor_msgs.msg
 from ias_coppelia_sim_core.ros_utils import CSCommandClient
 from ias_coppelia_sim_core.ros_utils import CSGotoActionClient, CSGripperCommandActionClient
 from ias_coppelia_sim_core.ros_utils import TSLogger, RobotLogger
+
+from ias_coppelia_sim_iiwas.base import CSControllerIiwasAirHokey
+from pyrep.objects.shape import Shape
+from pyrep.const import PrimitiveShape
+
 import tf2_ros
 import geometry_msgs.msg
 
@@ -77,7 +82,7 @@ class PyRepEnv(gym.Env):
         self.table_baseline=0.25
         self.table_above=0.43
         self.cube_on_table = 0.36902
-        self.move_duration=np.array([3])
+        self.move_duration=np.array([10])
         self.ik=Iknn()
 
         print("Start ROS init")        
@@ -85,7 +90,16 @@ class PyRepEnv(gym.Env):
         rospy.init_node("goals_demo_node")
         # set up the all action clients
         self.robot = CSGotoActionClient('/iiwas_control/iiwas/goto')
-        self.robot_gripper = CSGripperCommandActionClient('/ezgripper/ezgripper_left')
+        self.robot_gripper = CSGripperCommandActionClient('/ezgripper/ezgripper_right')
+
+        self.robot_sim = CSControllerIiwasAirHokey()
+        self.tfBuffer = tf2_ros.Buffer()
+        self.objpos_listener = tf2_ros.TransformListener(self.tfBuffer)
+        self.makeObject()
+
+        rospy.sleep(3)
+        self.update_cube()
+
         self.cscommandcl = CSCommandClient(sl=SL)
         self.last_image = None
         self.fresh_image = False
@@ -100,6 +114,41 @@ class PyRepEnv(gym.Env):
         
         self.goals = None
         self.goal_idx = -1
+
+    def makeObject(self, color=[1, 0, 0], size=[0.05, 0.05, 0.05]):
+        ''' Make a standard cuboid object
+            Args:
+                color: (list or array of 3 floats), RGB color
+                size: (list or array of 3 floats), w, h, d sizes
+            Returns:
+                handle to pyrep object
+        '''
+
+        #pos=self.action_space.sample()['macro_action'][0]
+        object_handle=Shape.create(
+            mass=0.002,
+            type=PrimitiveShape.CUBOID,
+            color=color,
+            size=size,
+            #position=[-0.981336724758148, 0.10062150572613604, 0.20612055531338605])
+            position=[0.0, 0.0, 0.0])
+        object_handle.set_bullet_friction(10e9)
+        print(object_handle.get_position())
+        self.cube = object_handle
+
+    def update_cube(self):
+        msg = self.tfBuffer.lookup_transform('coppelia_origin', 'cube', rospy.Time())
+        x = msg.transform.translation.x
+        y = msg.transform.translation.y
+        z = msg.transform.translation.z
+        rx = msg.transform.rotation.x
+        ry = msg.transform.rotation.y
+        rz = msg.transform.rotation.z
+        rw = msg.transform.rotation.w
+        print(np.array([x, y, z, rx, ry, rz, rw]))
+        print(self.new_scene_conversion(np.array([x, y, z, rx, ry, rz, rw])))
+        self.cube.set_pose(pose=np.array([x, y, z, rx, ry, rz, rw]))
+       
 
     def receive_camera(self, image):
         print("Received camera image.")
@@ -179,16 +228,23 @@ class PyRepEnv(gym.Env):
             x,y,z coordinates.
 
             Args:
-                arm: (string), one of 'LEFT_ARM' or 'RIGHT_ARM'
+                arm: (string), one of 'RIGHT_ARM' or 'RIGHT_ARM'
                 pos: (array or list), x,y,z, position to reach
                 joints: (array or list) the 7 angles in radiants describing
                     the posture to be reached
         '''
         if joints is not None:
+            self.robot_sim.goto_joint(
+                'LEFT_ARM',               
+                joints.reshape(1, -1),
+                durations=self.move_duration)          
+
             self.robot.goto_joint(                
                 joints.reshape(1, -1),
-                joint_group='LEFT_ARM',
+                joint_group='RIGHT_ARM',
                 duration=self.move_duration)
+
+            self.robot_sim.wait_for_goto('LEFT_ARM')
             self.robot.wait_for_goto()
         elif pos is not None:
             pos = self.new_scene_conversion(pos)
@@ -204,17 +260,27 @@ class PyRepEnv(gym.Env):
                     to 100 (open).
                 torque: (float) amount of force, from 0 (none) to 100 (maximum)
         '''
-        self.robot_gripper.grasp(grasp_amp, torque)
+        self.robot_sim.grasp("LEFT_GRIPPER", 0, 20)
+        self.robot_gripper.grasp(0, 20)
+
+        self.robot_sim.wait_for_grasp("LEFT_GRIPPER")
         self.robot_gripper.wait_for_grasp()
 
     def goHome(self, duration=3.0):
+        self.robot_sim.goto_joint('LEFT_ARM', np.array([0,-0.20,0,-1,0,1.1,0]),
+                        durations=np.array([duration]))
+
         self.robot.goto_joint(np.array([0,-0.20,0,-1,0,1.1,0]),
-                        joint_group='LEFT_ARM', duration=np.array([duration]))
+                        joint_group='RIGHT_ARM', duration=np.array([duration]))
+        self.robot_sim.wait_for_goto('LEFT_ARM')
         self.robot.wait_for_goto()
 
     def goHome2(self, duration=3.0):
+        self.robot_sim.goto_joint('LEFT_ARM', np.array([np.pi/4,-0.20,0,-1,0,1.1,0]),
+                        durations=np.array([duration]))
         self.robot.goto_joint(np.array([np.pi/4,-0.20,0,-1,0,1.1,0]),
-                        joint_group='LEFT_ARM', duration=np.array([duration]))
+                        joint_group='RIGHT_ARM', duration=np.array([duration]))
+        self.robot_sim.wait_for_goto('LEFT_ARM')
         self.robot.wait_for_goto()
 
 
@@ -284,11 +350,13 @@ class PyRepEnv(gym.Env):
                     8 gripper moved up
                     5 go back home
             '''
-            self.move_to(arm="LEFT_ARM", pos=p1_up)
-            self.move_to(arm="LEFT_ARM", pos=p1_down)
-            self.move_to(arm="LEFT_ARM", pos=p2_down)
-            self.move_to(arm="LEFT_ARM", pos=p2_up)
+            self.move_to(arm="RIGHT_ARM", pos=p1_up)
+            self.move_to(arm="RIGHT_ARM", pos=p1_down)
+            self.move_to(arm="RIGHT_ARM", pos=p2_down)
+            self.move_to(arm="RIGHT_ARM", pos=p2_up)
             self.goHome()
+            rospy.sleep(30)
+            self.update_cube()
         else:
             gpos = None
             print("No action to execute, just observe.")
@@ -317,11 +385,11 @@ class PyRepEnv(gym.Env):
         ''' Change joint position -- Debug purposes '''
 
         self.robot.goto_joint(
-            'LEFT_ARM',
+            'RIGHT_ARM',
             joints.reshape(1, -1),
             self.move_duration)
-        self.robot.wait_for_goto('LEFT_ARM')
-        pos=self.robot.get_gripper_position('LEFT_ARM')
+        self.robot.wait_for_goto('RIGHT_ARM')
+        pos=self.robot.get_gripper_position('RIGHT_ARM')
 
         return pos
 
@@ -338,11 +406,11 @@ class PyRepEnv(gym.Env):
             joint_poses[0, 5] = np.pi - (joint_poses[0, 1] - joint_poses[0, 3])
             joint_poses[0, 6] = joint_poses[0, 0]
 
-        self.robot.goto_joint('LEFT_ARM',
+        self.robot.goto_joint('RIGHT_ARM',
                               joint_poses,
                               self.move_duration)
-        self.robot.wait_for_goto('LEFT_ARM')
+        self.robot.wait_for_goto('RIGHT_ARM')
 
-        pos=self.robot.get_gripper_position('LEFT_ARM')
+        pos=self.robot.get_gripper_position('RIGHT_ARM')
         return np.hstack((joint_poses.ravel(), np.hstack(pos)))
 
