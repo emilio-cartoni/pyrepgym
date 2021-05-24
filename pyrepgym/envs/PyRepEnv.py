@@ -174,7 +174,7 @@ class PyRepEnv(gym.Env):
         new_pos[1] = new_pos[1] + 0.2564
         return pos
 
-    def move_to(self, arm, pos=None, joints=None):
+    def move_to(self, arm, pos=None, joints=None, duration=np.array([10])):
         ''' Move gripper to next position, expressed in joint space or
             x,y,z coordinates.
 
@@ -188,13 +188,13 @@ class PyRepEnv(gym.Env):
             self.robot.goto_joint(                
                 joints.reshape(1, -1),
                 joint_group='LEFT_ARM',
-                duration=self.move_duration)
+                duration=duration)
             self.robot.wait_for_goto()
         elif pos is not None:
             pos = self.new_scene_conversion(pos)
             joints=self.ik.get_joints(pos)
             joints[6]=0.5*np.pi
-            self.move_to(arm, joints=joints)
+            self.move_to(arm, joints=joints, duration=duration)
 
     def grasp(self, grasp_amp, torque):
         ''' Move gripper claws
@@ -204,7 +204,7 @@ class PyRepEnv(gym.Env):
                     to 100 (open).
                 torque: (float) amount of force, from 0 (none) to 100 (maximum)
         '''
-        self.robot_gripper.grasp(grasp_amp, torque)
+        self.robot_gripper.grasp(0, 20)
         self.robot_gripper.wait_for_grasp()
 
     def goHome(self, duration=3.0):
@@ -262,6 +262,22 @@ class PyRepEnv(gym.Env):
                       }
         return observation
 
+    def splitMovement(self, start, finish, splitBy=0.05):
+        dist = np.linalg.norm(finish - start)
+        n = int(dist // splitBy)
+        rem = dist - n * splitBy
+        a = (finish - start) / dist
+        ends = []
+        end = start
+        for i in range(n):
+            end = end + a * splitBy
+            ends += [end]
+        if rem > 0:
+            end = end + a * rem
+            ends += [end]
+        return ends
+
+
     def step(self, action):
 
         macro_action = action['macro_action']
@@ -273,7 +289,6 @@ class PyRepEnv(gym.Env):
 
             p1_up=np.hstack([start, self.table_above])
             p1_down=np.hstack([start, self.table_baseline])
-            p1_up=np.hstack([start, self.table_above])
             p2_up=np.hstack([dest, self.table_above])
             p2_down=np.hstack([dest, self.table_baseline])
 
@@ -284,10 +299,12 @@ class PyRepEnv(gym.Env):
                     8 gripper moved up
                     5 go back home
             '''
-            self.move_to(arm="LEFT_ARM", pos=p1_up)
-            self.move_to(arm="LEFT_ARM", pos=p1_down)
-            self.move_to(arm="LEFT_ARM", pos=p2_down)
-            self.move_to(arm="LEFT_ARM", pos=p2_up)
+            self.move_to(arm="LEFT_ARM", pos=p1_up, duration=np.array([3]))
+            self.move_to(arm="LEFT_ARM", pos=p1_down, duration=np.array([10]))
+            steps = self.splitMovement(p1_down, p2_down)
+            for step in steps:
+                self.move_to(arm="LEFT_ARM", pos=step, duration=np.array([max(1,10/len(steps))]))
+            self.move_to(arm="LEFT_ARM", pos=p2_up, duration=np.array([5]))
             self.goHome()
         else:
             gpos = None
