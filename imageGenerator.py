@@ -6,6 +6,7 @@ from ias_coppelia_sim_iiwas.base import CSControllerIiwasAirHokey
 from ias_coppelia_sim_iiwas.sensors import RealSense
 from pyrep.objects.shape import Shape
 from pyrep.const import PrimitiveShape
+from pyrep.const import RenderMode
 from pyrepgym.envs.grid import make_grid
 from pyrepgym.envs.PyRepEnv import macro_space
 import time
