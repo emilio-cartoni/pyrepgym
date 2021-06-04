@@ -36,7 +36,18 @@ class AwesomeROSControllerIiwas(CSControllerIiwasAirHokey):
         # load camera
         self.camera = RealSense.create(color=True, depth=False,
                                        position=[-0.9, 0., 1.1],
+                                       render_mode=RenderMode.POV_RAY,
                                        orientation=[np.pi, 0., np.pi/2])
+
+#                RenderMode.OPENGL
+#                RenderMode.OPENGL_AUXILIARY
+#                RenderMode.OPENGL_COLOR_CODED
+#                RenderMode.POV_RAY
+#                RenderMode.EXTERNAL
+#                RenderMode.EXTERNAL_WINDOWED
+#                RenderMode.OPENGL3             DEFAULT
+#                RenderMode.OPENGL3_WINDOWED
+
 
         self.camera.set_handle_explicitly()
         self.camera.set_model_collidable(False)
